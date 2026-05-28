@@ -1,0 +1,61 @@
+{
+    "metadata": {
+        "vocab_file": "metadata/vocab.json",
+        "merges_file": "metadata/merges.txt"
+    },
+    "export_tensorRT": {
+        "model_path": "onnx_weights/sam3_dynamic.onnx",
+        "output_name": "tensorRT_weights/sam-3.engine"
+
+    },
+    "onnx_export": {
+        "device": "cpu",
+        "prompt": "person",
+        "image_url": "http://images.cocodataset.org/val2017/000000077595.jpg",
+        "onnx_path": "sam3_dynamic.onnx",
+        "dynamo": false,
+        "opset_version": 17
+
+    },
+    "infer_onnx": {
+        "image_url": "image_test/person_test.jpeg",
+        "onnx_file_path": "onnx_weights/sam3_dynamic.onnx",
+        "providers": ["CUDAExecutionProvider", "CPUExecutionProvider"],
+        "output_image": "outputs/onnx_inference_result.jpg",
+        "score_thr": 0.6,
+        "mask_thr": 0.5,
+        "max_inst": 30,
+        "prompt": "person"
+    },
+    "infer_pytorch_webcam":{
+        "device": "cuda",
+        "prompt": "person",
+        "benchmark": true,
+        "mask_alpha": 0.45,
+        "mask_threshold": 0.5,
+        "box_width": 3,
+        "postprocess_threshold": 0.5,
+        "postprocess_mask_threshold": 0.5
+    },
+    "infer_trt": {
+        "image_url": "image_test/person_test.jpeg",
+        "engine_file_path": "tensorRT_weights/sam-3.engine",
+        "prompt": "person",
+        "score_thr": 0.6,
+        "mask_thr": 0.5,
+        "max_inst": 30,
+        "boxes_normalized": true,
+        "outputs_shapes": [[1, 200, 288, 288], [1, 20736, 4], [1, 200]],
+        "output_image" : "outputs/tensorRT_inference_result.jpg"
+    },
+    "infer_trt_webcam": {
+        "max_iteration": 200,
+        "outputs_shapes": [[1, 200, 288, 288], [1, 20736, 4], [1, 200]],
+        "prompt": "person",
+        "score_thr": 0.6,
+        "mask_thr": 0.5,
+        "max_inst": 30,
+        "boxes_normalized": true,
+        "engine_file_path": "tensorRT_weights/sam-3.engine"
+    }
+}

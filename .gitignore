@@ -1,2 +1,6 @@
+__pycache__
 triton/
 llvm-project/
+*.engine
+onnx_weights/*
+logs/*
