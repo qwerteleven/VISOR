@@ -11,7 +11,7 @@ def process_sam3_results(
     max_inst=30,
     boxes_normalized=True,
 ):
-    pred_masks, pred_boxes, pred_logits = outputs
+    pred_masks, pred_boxes, pred_logits, presence_logits, semantic_seg, decoder_reference_boxes = outputs
 
     if pred_masks.ndim == 4:
         pred_masks = pred_masks[0]      # [N, Hm, Wm]
@@ -20,16 +20,21 @@ def process_sam3_results(
     if pred_logits.ndim == 2:
         pred_logits = pred_logits[0]    # [N]
     
-    """
+  
     pred_masks  = pred_masks.astype(np.float32)
     pred_boxes  = pred_boxes.astype(np.float32)
     pred_logits = pred_logits.astype(np.float32)
-    """
+
+    print( pred_masks.shape)
+   
     
     N, Hm, Wm = pred_masks.shape
 
     # logits -> scores
     scores = 1.0 / (1.0 + np.exp(-pred_logits))  # [N]
+
+    #  box logits
+    pred_boxes = 1 / (1 + np.exp(-pred_boxes))  # shape [N, 4], valores en [0,1]
 
     indices = list(range(N))
     indices = sorted(indices, key=lambda i: float(scores[i]), reverse=True)
@@ -40,7 +45,7 @@ def process_sam3_results(
     for i in indices:
         mask  = pred_masks[i]          # [Hm, Wm]
         score = float(scores[i])
-        box   = pred_boxes[i]          # [4]
+        box   = pred_boxes[i]          # [4]  semantic_seg????
 
         mask_resized = cv2.resize(mask, (img_w, img_h), interpolation=cv2.INTER_LINEAR)
         m = (mask_resized > mask_thr).astype(np.uint8)  # [H, W]
@@ -48,23 +53,13 @@ def process_sam3_results(
         if m.sum() == 0:
             continue
 
-        x1, y1, x2, y2 = box
 
-        if boxes_normalized:
-            x1 = int(x1 * img_w)
-            x2 = int(x2 * img_w)
-            y1 = int(y1 * img_h)
-            y2 = int(y2 * img_h)
-        else:
-            x1 = int(x1)
-            y1 = int(y1)
-            x2 = int(x2)
-            y2 = int(y2)
 
-        x1 = max(0, min(x1, img_w - 1))
-        x2 = max(0, min(x2, img_w - 1))
-        y1 = max(0, min(y1, img_h - 1))
-        y2 = max(0, min(y2, img_h - 1))
+        coords = np.argwhere(m)
+        y1, x1 = coords.min(axis=0)
+        y2, x2 = coords.max(axis=0)
+
+
 
         results.append({
             "mask": m,          # [H, W] uint8
