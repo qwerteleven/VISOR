@@ -190,3 +190,4 @@ python infer_pytorch_webcam.py
 - The model is wrapped in `Sam3ONNXWrapper` during export to produce clean `pixel_values / input_ids / attention_mask` inputs and `pred_masks / semantic_seg / pred_logits` outputs.
 - `utils/common.py` is derived from [NVIDIA's TensorRT Python samples](https://github.com/NVIDIA/TensorRT/tree/main/samples/python) and handles pinned-memory buffer allocation and async CUDA memcpy.
 - Webcam inference benchmarks print average frame time every 100 iterations.
+- Base repositories: github.com/taifyang/sam-inference  - github.com/dataplayer12/SAM3-TensorRT
