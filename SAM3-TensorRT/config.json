@@ -10,11 +10,11 @@
     },
     "onnx_export": {
         "device": "cpu",
-        "prompt": "person",
+        "prompt": "object inside box",
         "image_url": "http://images.cocodataset.org/val2017/000000077595.jpg",
         "onnx_path": "sam3_dynamic.onnx",
         "dynamo": false,
-        "opset_version": 17
+        "opset_version": 18
 
     },
     "infer_onnx": {
@@ -45,17 +45,18 @@
         "mask_thr": 0.5,
         "max_inst": 30,
         "boxes_normalized": true,
-        "outputs_shapes": [[1, 200, 288, 288], [1, 20736, 4], [1, 200]],
+        "outputs_shapes": [[1, 200, 288, 288], [1,200,4], [1, 200], [1,1], [1,1,288,288], [6,1,200,4]],
         "output_image" : "outputs/tensorRT_inference_result.jpg"
     },
     "infer_trt_webcam": {
-        "max_iteration": 200,
-        "outputs_shapes": [[1, 200, 288, 288], [1, 20736, 4], [1, 200]],
-        "prompt": "person",
-        "score_thr": 0.6,
+        "max_iteration": 20000,
+        "outputs_shapes": [[1, 200, 288, 288], [1,200,4], [1, 200], [1,1], [1,1,288,288], [6,1,200,4]],
+        "prompt": "object inside box",
+        "score_thr": 0.5,
         "mask_thr": 0.5,
-        "max_inst": 30,
+        "max_inst": 300,
         "boxes_normalized": true,
-        "engine_file_path": "tensorRT_weights/sam-3.engine"
+        "engine_file_path": "tensorRT_weights/sam-3.engine",
+        "VISOR_NAME": "Test"
     }
 }
