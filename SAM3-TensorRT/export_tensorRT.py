@@ -13,7 +13,7 @@ import tensorrt as trt
 
 
 logger = trt.Logger(trt.Logger.WARNING)
-
+trt.init_libnvinfer_plugins(logger, "")
 model_path = config["model_path"] 
 
 
@@ -48,6 +48,8 @@ config_build.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 4 << 30)  # 4 G
 
 if builder.platform_has_fast_fp16:
     config_build.set_flag(trt.BuilderFlag.FP16)
+
+
 try:
     config_build.builder_optimization_level = 5      # 0–5; 5 = longest build, fastest engine
 except AttributeError:
