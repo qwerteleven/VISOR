@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>NAVIGATOR · VISION</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #080c0f;
+      --surface: #0d1318;
+      --panel: #111820;
+      --accent: #00ffe7;
+      --accent2: #ff3d6e;
+      --dim: #1e2d38;
+      --text: #c8dde8;
+      --text-muted: #4a6475;
+      --font-display: 'Bebas Neue', sans-serif;
+      --font-mono: 'Space Mono', monospace;
+      --border: rgba(0,255,231,0.15);
+      --glow: 0 0 20px rgba(0,255,231,0.2);
+    }
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-mono); overflow: hidden; -webkit-tap-highlight-color: transparent; }
+    .app { display: flex; flex-direction: column; height: 100dvh; }
+
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px; background: var(--surface);
+      border-bottom: 1px solid var(--border); flex-shrink: 0; z-index: 10;
+    }
+    .logo { font-family: var(--font-display); font-size: 1.6rem; letter-spacing: 0.12em; color: var(--accent); text-shadow: var(--glow); }
+    .logo span { color: var(--accent2); }
+    .status-pill { display: flex; align-items: center; gap: 6px; font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); border: 1px solid var(--dim); border-radius: 20px; padding: 4px 10px; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); transition: background 0.3s, box-shadow 0.3s; }
+    .dot.live { background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse 1.4s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    .viewport { position: relative; flex: 1 1 auto; overflow: hidden; background: #000; }
+    video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .scanlines { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(to bottom, transparent 0px, transparent 3px, rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 4px); z-index: 2; }
+    .bracket { position: absolute; width: 30px; height: 30px; border-color: var(--accent); border-style: solid; opacity: 0.7; z-index: 3; }
+    .bracket.tl { top:14px; left:14px; border-width: 2px 0 0 2px; }
+    .bracket.tr { top:14px; right:14px; border-width: 2px 2px 0 0; }
+    .bracket.bl { bottom:14px; left:14px; border-width: 0 0 2px 2px; }
+    .bracket.br { bottom:14px; right:14px; border-width: 0 2px 2px 0; }
+    .crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 40px; height: 40px; z-index: 3; pointer-events: none; }
+    .crosshair::before, .crosshair::after { content: ''; position: absolute; background: var(--accent); opacity: 0.5; }
+    .crosshair::before { width: 1px; height: 100%; left: 50%; top: 0; }
+    .crosshair::after { width: 100%; height: 1px; top: 50%; left: 0; }
+    .hud-label { position: absolute; font-size: 0.55rem; letter-spacing: 0.1em; color: var(--accent); opacity: 0.7; z-index: 4; text-transform: uppercase; }
+    .hud-label.tl { top: 20px; left: 52px; }
+    .hud-label.tr { top: 20px; right: 52px; text-align: right; }
+    .hud-label.bl { bottom: 20px; left: 52px; }
+    .hud-label.br { bottom: 20px; right: 52px; text-align: right; }
+
+    .idle-screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: var(--bg); z-index: 5; padding: 24px; }
+    .idle-screen .icon { width: 64px; height: 64px; border: 2px solid var(--dim); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
+    .idle-screen p { font-size: 0.72rem; color: var(--text-muted); text-align: center; max-width: 260px; line-height: 1.7; }
+    .idle-screen p.big { font-family: var(--font-display); font-size: 1.4rem; letter-spacing: 0.1em; color: var(--text); }
+    .btn-start { margin-top: 6px; padding: 10px 28px; background: transparent; border: 1px solid var(--accent); color: var(--accent); font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; border-radius: 2px; transition: background 0.2s, color 0.2s; }
+    .btn-start:hover, .btn-start:active { background: var(--accent); color: #000; }
+
+    /* Warning box */
+    .warn-box { background: rgba(255,61,110,0.1); border: 1px solid var(--accent2); border-radius: 4px; padding: 10px 14px; max-width: 300px; text-align: left; }
+    .warn-box strong { display: block; color: var(--accent2); font-size: 0.65rem; letter-spacing: 0.1em; margin-bottom: 6px; }
+    .warn-box p { color: var(--text); font-size: 0.62rem; line-height: 1.7; margin: 0; }
+    .warn-box code { background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 2px; font-family: var(--font-mono); font-size: 0.6rem; color: var(--accent); }
+
+    .err-msg { color: var(--accent2); font-size: 0.62rem; text-align: center; max-width: 260px; line-height: 1.6; display: none; }
+
+    nav { display: flex; align-items: stretch; background: var(--surface); border-top: 1px solid var(--border); flex-shrink: 0; height: 64px; }
+    .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: transparent; border: none; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.5rem; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; border-top: 2px solid transparent; transition: color 0.2s, border-color 0.2s; }
+    .nav-btn svg { width: 20px; height: 20px; }
+    .nav-btn.active { color: var(--accent); border-top-color: var(--accent); }
+
+    .flash-overlay { position: absolute; inset: 0; background: white; opacity: 0; pointer-events: none; z-index: 10; transition: opacity 0.05s; }
+    .flash-overlay.flash { opacity: 0.85; }
+
+    .info-panel { position: absolute; bottom: 0; left: 0; right: 0; background: var(--panel); border-top: 1px solid var(--border); padding: 18px 20px 20px; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); z-index: 6; border-radius: 12px 12px 0 0; }
+    .info-panel.open { transform: translateY(0); }
+    .panel-handle { width: 36px; height: 3px; background: var(--dim); border-radius: 2px; margin: 0 auto 14px; }
+    .panel-title { font-family: var(--font-display); font-size: 1.1rem; letter-spacing: 0.1em; color: var(--accent); margin-bottom: 12px; }
+    .info-row { display: flex; justify-content: space-between; font-size: 0.62rem; padding: 7px 0; border-bottom: 1px solid var(--dim); color: var(--text-muted); }
+    .info-row span:last-child { color: var(--text); }
+    #clock { font-size: 0.62rem; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">NAV<span>·</span>VISION</div>
+    <div id="clock">00:00:00</div>
+    <div class="status-pill">
+      <div class="dot" id="liveDot"></div>
+      <span id="statusText">OFFLINE</span>
+    </div>
+  </header>
+
+  <div class="viewport" id="viewport">
+    <video id="video" autoplay playsinline muted></video>
+    <div class="scanlines"></div>
+    <div class="bracket tl"></div><div class="bracket tr"></div>
+    <div class="bracket bl"></div><div class="bracket br"></div>
+    <div class="crosshair"></div>
+    <div class="hud-label tl" id="hudTL">REC · 0:00</div>
+    <div class="hud-label tr" id="hudTR">CAM · REAR</div>
+    <div class="hud-label bl" id="hudBL">—</div>
+    <div class="hud-label br" id="hudBR">FPS · --</div>
+    <div class="flash-overlay" id="flash"></div>
+
+    <div class="idle-screen" id="idleScreen">
+      <div class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M15 10l4.553-2.277A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/>
+        </svg>
+      </div>
+      <p class="big">CAMERA FEED</p>
+      <div id="httpsWarn" class="warn-box" style="display:none">
+        <strong>⚠ HTTPS REQUIRED</strong>
+        <p>Android Chrome blocks camera access on plain <code>http://</code> or <code>file://</code>.<br><br>
+        To fix, serve this file over <code>https://</code> — try uploading to <code>github.io</code>, <code>netlify.app</code>, or use a local HTTPS server.</p>
+      </div>
+      <p id="idleHint">Grant camera access to start the live navigator stream.</p>
+      <button class="btn-start" id="startBtn">ACTIVATE FEED</button>
+      <p class="err-msg" id="errMsg"></p>
+    </div>
+
+    <div class="info-panel" id="infoPanel">
+      <div class="panel-handle"></div>
+      <div class="panel-title">STREAM INFO</div>
+      <div class="info-row"><span>RESOLUTION</span><span id="infRes">—</span></div>
+      <div class="info-row"><span>FRAME RATE</span><span id="infFps">—</span></div>
+      <div class="info-row"><span>FACING MODE</span><span id="infFacing">—</span></div>
+      <div class="info-row"><span>DEVICE</span><span id="infDevice">—</span></div>
+      <div class="info-row"><span>PROTOCOL</span><span id="infProto">—</span></div>
+      <div class="info-row"><span>STATUS</span><span id="infStatus">OFFLINE</span></div>
+    </div>
+  </div>
+
+  <nav>
+    <button class="nav-btn" id="btnFlip">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 013.51 15"/></svg>
+      FLIP
+    </button>
+    <button class="nav-btn active" id="btnCam">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 10l4.553-2.277A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg>
+      LIVE
+    </button>
+    <button class="nav-btn" id="btnCapture">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M20 7h-2.5L16 5H8L6.5 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/></svg>
+      SNAP
+    </button>
+    <button class="nav-btn" id="btnInfo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12.01" y2="8"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
+      INFO
+    </button>
+  </nav>
+</div>
+
+<script>
+  const video      = document.getElementById('video');
+  const startBtn   = document.getElementById('startBtn');
+  const idleScreen = document.getElementById('idleScreen');
+  const liveDot    = document.getElementById('liveDot');
+  const statusText = document.getElementById('statusText');
+  const hudTL      = document.getElementById('hudTL');
+  const hudBR      = document.getElementById('hudBR');
+  const hudBL      = document.getElementById('hudBL');
+  const hudTR      = document.getElementById('hudTR');
+  const flash      = document.getElementById('flash');
+  const infoPanel  = document.getElementById('infoPanel');
+  const errMsg     = document.getElementById('errMsg');
+  const httpsWarn  = document.getElementById('httpsWarn');
+  const idleHint   = document.getElementById('idleHint');
+
+  let stream = null;
+  let facingMode = 'environment';
+  let recSeconds = 0, recTimer = null;
+  let fpsCount = 0, fpsLast = performance.now();
+
+  // ── Clock ──
+  function tickClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent = now.toTimeString().slice(0,8);
+  }
+  setInterval(tickClock, 1000); tickClock();
+
+  // ── Protocol info ──
+  const proto = location.protocol;
+  document.getElementById('infProto').textContent = proto;
+
+  // ── Check if camera API is even available ──
+  function getCameraAPI() {
+    // Modern API
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      return 'modern';
+    }
+    // Legacy webkit / moz
+    const legacyGUM = navigator.getUserMedia ||
+                      navigator.webkitGetUserMedia ||
+                      navigator.mozGetUserMedia ||
+                      navigator.msGetUserMedia;
+    if (legacyGUM) return 'legacy';
+    return null;
+  }
+
+  // Show HTTPS warning on page load if API is unavailable and not secure
+  window.addEventListener('load', () => {
+    const api = getCameraAPI();
+    if (!api && proto !== 'https:' && proto !== 'about:') {
+      httpsWarn.style.display = 'block';
+      idleHint.style.display = 'none';
+      startBtn.textContent = 'RETRY ANYWAY';
+    }
+  });
+
+  // ── Rec timer ──
+  function startRecTimer() {
+    recSeconds = 0;
+    clearInterval(recTimer);
+    recTimer = setInterval(() => {
+      recSeconds++;
+      const m = String(Math.floor(recSeconds / 60)).padStart(2,'0');
+      const s = String(recSeconds % 60).padStart(2,'0');
+      hudTL.textContent = `REC · ${m}:${s}`;
+    }, 1000);
+  }
+
+  // ── FPS ──
+  function measureFps() {
+    fpsCount++;
+    const now = performance.now();
+    if (now - fpsLast >= 1000) {
+      hudBR.textContent = `FPS · ${fpsCount}`;
+      document.getElementById('infFps').textContent = `${fpsCount} fps`;
+      fpsCount = 0;
+      fpsLast = now;
+    }
+    if (stream) requestAnimationFrame(measureFps);
+  }
+
+  // ── Modern getUserMedia ──
+  function startModern(constraints) {
+    return navigator.mediaDevices.getUserMedia(constraints);
+  }
+
+  // ── Legacy getUserMedia wrapped in Promise ──
+  function startLegacy(constraints) {
+    return new Promise((resolve, reject) => {
+      const gum = navigator.getUserMedia ||
+                  navigator.webkitGetUserMedia ||
+                  navigator.mozGetUserMedia ||
+                  navigator.msGetUserMedia;
+      gum.call(navigator, constraints, resolve, reject);
+    });
+  }
+
+  // ── Main start function ──
+  async function startCamera() {
+    errMsg.style.display = 'none';
+    startBtn.textContent = 'CONNECTING…';
+    startBtn.disabled = true;
+
+    const apiType = getCameraAPI();
+
+    if (!apiType) {
+      showError(
+        proto === 'https:'
+          ? 'Camera API not supported in this browser.'
+          : '⚠ Camera requires HTTPS. Open this page via https:// — see the warning above for options.'
+      );
+      startBtn.textContent = 'ACTIVATE FEED';
+      startBtn.disabled = false;
+      return;
+    }
+
+    // Stop any existing stream
+    if (stream) stream.getTracks().forEach(t => t.stop());
+
+    const constraints = {
+      video: {
+        facingMode: facingMode,
+        width:  { ideal: 1280 },
+        height: { ideal: 720 }
+      },
+      audio: false
+    };
+
+    try {
+      stream = apiType === 'modern'
+        ? await startModern(constraints)
+        : await startLegacy(constraints);
+
+      video.srcObject = stream;
+      video.onloadedmetadata = () => {
+        const w = video.videoWidth, h = video.videoHeight;
+        hudBL.textContent = `${w}×${h}`;
+        hudTR.textContent = `CAM · ${facingMode === 'environment' ? 'REAR' : 'FRONT'}`;
+        document.getElementById('infRes').textContent = `${w}×${h}`;
+        document.getElementById('infFacing').textContent = facingMode === 'environment' ? 'REAR' : 'FRONT';
+        const track = stream.getVideoTracks()[0];
+        document.getElementById('infDevice').textContent = (track.label || 'Unknown').slice(0,28);
+        document.getElementById('infStatus').textContent = 'LIVE';
+      };
+
+      idleScreen.style.display = 'none';
+      liveDot.classList.add('live');
+      statusText.textContent = 'LIVE';
+      startRecTimer();
+      requestAnimationFrame(measureFps);
+
+    } catch (e) {
+      startBtn.textContent = 'ACTIVATE FEED';
+      startBtn.disabled = false;
+
+      if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+        showError('Camera permission denied. Tap your browser\'s address bar → Site settings → Allow Camera, then try again.');
+      } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
+        showError('No camera found on this device.');
+      } else if (e.name === 'NotReadableError') {
+        showError('Camera is in use by another app. Close it and try again.');
+      } else if (e.name === 'OverconstrainedError') {
+        // Retry with minimal constraints
+        retryMinimal(apiType);
+      } else {
+        showError(`Error (${e.name}): ${e.message}`);
+      }
+    }
+  }
+
+  // Fallback: try with no constraints at all
+  async function retryMinimal(apiType) {
+    try {
+      stream = apiType === 'modern'
+        ? await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        : await startLegacy({ video: true, audio: false });
+
+      video.srcObject = stream;
+      idleScreen.style.display = 'none';
+      liveDot.classList.add('live');
+      statusText.textContent = 'LIVE';
+      startRecTimer();
+      requestAnimationFrame(measureFps);
+    } catch (e2) {
+      showError(`Could not start camera: ${e2.message}`);
+      startBtn.textContent = 'ACTIVATE FEED';
+      startBtn.disabled = false;
+    }
+  }
+
+  function showError(msg) {
+    errMsg.textContent = msg;
+    errMsg.style.display = 'block';
+  }
+
+  // ── Button events ──
+  startBtn.addEventListener('click', startCamera);
+
+  document.getElementById('btnFlip').addEventListener('click', () => {
+    if (!stream) return;
+    facingMode = facingMode === 'environment' ? 'user' : 'environment';
+    startCamera();
+  });
+
+  document.getElementById('btnCapture').addEventListener('click', () => {
+    if (!stream) return;
+    flash.classList.add('flash');
+    setTimeout(() => flash.classList.remove('flash'), 200);
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const link = document.createElement('a');
+    link.download = `nav-vision-${Date.now()}.jpg`;
+    link.href = canvas.toDataURL('image/jpeg', 0.9);
+    link.click();
+  });
+
+  document.getElementById('btnInfo').addEventListener('click', () => {
+    const open = infoPanel.classList.toggle('open');
+    document.getElementById('btnInfo').classList.toggle('active', open);
+    document.getElementById('btnCam').classList.toggle('active', !open);
+  });
+
+  document.getElementById('viewport').addEventListener('click', (e) => {
+    if (!infoPanel.contains(e.target) && infoPanel.classList.contains('open')) {
+      infoPanel.classList.remove('open');
+      document.getElementById('btnInfo').classList.remove('active');
+      document.getElementById('btnCam').classList.add('active');
+    }
+  });
+</script>
+</body>
+</html>
