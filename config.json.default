@@ -1,0 +1,9 @@
+{
+    "certified": {
+        "path": "server.pem"
+    },
+    "conection": {
+        "host":  "",
+        "port": 0
+    }
+}
