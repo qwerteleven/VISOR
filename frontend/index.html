@@ -176,9 +176,23 @@
   const httpsWarn  = document.getElementById('httpsWarn');
   const idleHint   = document.getElementById('idleHint');
   
-  
-  
   let whipPc = null;
+
+  async function readJsonFile(filePath) {
+    try {
+        const response = await fetch(filePath)
+
+        if (!response.ok) {
+            throw new Error(`Failed to load file: ${response.status}`)
+        }
+
+        const jsonData = await response.json()
+        return jsonData
+    } catch (error) {
+        console.error('Error reading JSON file:', error)
+        throw error
+    }
+  }
 
   async function startWHIP(mediaStream) {
     whipPc = new RTCPeerConnection();
@@ -187,8 +201,23 @@
     const offer = await whipPc.createOffer();
     await whipPc.setLocalDescription(offer);
 
+
+
     try {
-      const res = await fetch('http://192.168.0.10:8889/movil_camera/whip', {
+
+      let streaming_path = null 
+
+      readJsonFile('../config.json')
+        .then(data => {
+            streaming_path = `http://${data.conection.host}:${data.conection.port}/movil_camera/whip`
+        })
+        .catch(error => {
+            console.error('Failed to load configuration:', error)
+        })
+
+
+
+      const res = await fetch(streaming_path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/sdp' },
         body: offer.sdp
