@@ -8,3 +8,4 @@ onnx__MatMul*
 *.txt
 *.jpg
 rtsp-server/
+*.pem
