@@ -159,6 +159,8 @@
 </div>
 
 <script>
+
+
   const video      = document.getElementById('video');
   const startBtn   = document.getElementById('startBtn');
   const idleScreen = document.getElementById('idleScreen');
@@ -173,6 +175,32 @@
   const errMsg     = document.getElementById('errMsg');
   const httpsWarn  = document.getElementById('httpsWarn');
   const idleHint   = document.getElementById('idleHint');
+  
+  
+  
+  let whipPc = null;
+
+  async function startWHIP(mediaStream) {
+    whipPc = new RTCPeerConnection();
+    mediaStream.getTracks().forEach(track => whipPc.addTrack(track, mediaStream));
+
+    const offer = await whipPc.createOffer();
+    await whipPc.setLocalDescription(offer);
+
+    try {
+      const res = await fetch('http://192.168.0.10:8889/movil_camera/whip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/sdp' },
+        body: offer.sdp
+      });
+      if (!res.ok) throw new Error(`WHIP error ${res.status}`);
+      const answerSdp = await res.text();
+      await whipPc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
+      console.log('WHIP connected ✓');
+    } catch (e) {
+      console.warn('WHIP failed:', e.message);
+    }
+  }
 
   let stream = null;
   let facingMode = 'environment';
@@ -184,7 +212,11 @@
     const now = new Date();
     document.getElementById('clock').textContent = now.toTimeString().slice(0,8);
   }
+
+  
+
   setInterval(tickClock, 1000); tickClock();
+
 
   // ── Protocol info ──
   const proto = location.protocol;
@@ -302,6 +334,7 @@
         const track = stream.getVideoTracks()[0];
         document.getElementById('infDevice').textContent = (track.label || 'Unknown').slice(0,28);
         document.getElementById('infStatus').textContent = 'LIVE';
+        startWHIP(stream);
       };
 
       idleScreen.style.display = 'none';
@@ -329,6 +362,7 @@
     }
   }
 
+
   // Fallback: try with no constraints at all
   async function retryMinimal(apiType) {
     try {
@@ -338,10 +372,12 @@
 
       video.srcObject = stream;
       idleScreen.style.display = 'none';
+      startWHIP(stream);
       liveDot.classList.add('live');
       statusText.textContent = 'LIVE';
       startRecTimer();
       requestAnimationFrame(measureFps);
+      
     } catch (e2) {
       showError(`Could not start camera: ${e2.message}`);
       startBtn.textContent = 'ACTIVATE FEED';
@@ -371,11 +407,13 @@
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext('2d').drawImage(video, 0, 0);
+
     const link = document.createElement('a');
     link.download = `nav-vision-${Date.now()}.jpg`;
     link.href = canvas.toDataURL('image/jpeg', 0.9);
     link.click();
   });
+
 
   document.getElementById('btnInfo').addEventListener('click', () => {
     const open = infoPanel.classList.toggle('open');
