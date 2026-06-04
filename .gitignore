@@ -2,7 +2,7 @@ __pycache__
 triton/
 llvm-project/
 *.engine
-SAM3-TensorRT/onnx_weights/*
+object-segmentation/onnx_weights/*
 logs/*
 onnx__MatMul*
 *.txt

@@ -10,9 +10,6 @@ trt.init_libnvinfer_plugins(logger, "")
 import utils.common as common
 from transformers import Sam3Processor
 import time
-from utils.image_preprocess import preprocess_image
-from utils.simplify_tokenizer import SimpleCLIPBPETokenizer
-from utils.detect_postprocess import process_sam3_results, draw_sam3_results
 
 from transformers.models.sam3.modeling_sam3 import Sam3ImageSegmentationOutput
 
@@ -58,6 +55,12 @@ def click_and_crop(event, x, y, flags, param):
         windowWidth = cv2.getWindowImageRect(VISOR_NAME)[2]
         windowHeight = cv2.getWindowImageRect(VISOR_NAME)[3]
         user_ref_point += [(x / windowWidth, y / windowHeight)]
+
+    
+    if event == cv2.EVENT_RBUTTONDOWN:
+        windowWidth = cv2.getWindowImageRect(VISOR_NAME)[2]
+        windowHeight = cv2.getWindowImageRect(VISOR_NAME)[3]
+        user_ref_point = [(x / windowWidth, y / windowHeight)]
 
     
 
