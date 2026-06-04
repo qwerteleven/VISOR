@@ -42,7 +42,6 @@ if not success:
     print(parser.get_error(idx))
 
 
-
 config_build = builder.create_builder_config()
 config_build.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 4 << 30)  # 4 GiB
 

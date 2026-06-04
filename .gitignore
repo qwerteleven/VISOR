@@ -7,3 +7,4 @@ logs/*
 onnx__MatMul*
 *.txt
 *.jpg
+rtsp-server/

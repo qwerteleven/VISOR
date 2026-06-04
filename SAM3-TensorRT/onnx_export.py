@@ -34,16 +34,12 @@ color = (0, 0, 255) # BGR format
 thickness = 2     # Thickness in pixels (-1 fills the circle)
 
 
-
+## inputs for create a inference with ONNX that activates a significative input
 image = np.asarray(image)
 image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 image = cv2.rectangle(image, [225, 86], [540, 414], color, thickness)
-
 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 image = Image.fromarray(image)
-
-
-
 input_boxes = [[[225, 86, 540, 414]]]
 input_boxes_labels = [[1]] 
 
