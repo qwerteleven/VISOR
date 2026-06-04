@@ -1,193 +1,284 @@
-# SAM3-TensorRT
+# VISOR
 
-Fast inference pipeline for [Meta's SAM3](https://huggingface.co/facebook/sam3) (Segment Anything Model 3) using [NVIDIA TensorRT](https://developer.nvidia.com/tensorrt), with support for ONNX export, webcam streaming, and PyTorch reference inference.
+Real-time object segmentation and natural language description system. Streams live video from a mobile browser to a GPU-accelerated backend, runs SAM-3 segmentation and PaliGemma description inference via TensorRT, and returns annotated overlays to the client over WebSocket.
 
 ---
 
 ## Overview
 
-SAM3 is an open-vocabulary instance segmentation model. This repo provides tooling to:
+VISOR lets a user point their phone camera at an object, draw a bounding box around it, and receive a live segmentation mask with an AI-generated description — all in a browser, with no app installation required.
 
-- Export SAM3 from HuggingFace to [ONNX](https://onnx.ai/) format
-- Compile the ONNX model to a TensorRT engine for fast GPU inference
-- Run inference on static images or live webcam feeds
-- Visualize segmentation masks and bounding boxes
+```
+Mobile Browser ──WebRTC/WebSocket──▶ MediaMTX ──▶ Python Backend (GPU)
+     │                                                      │
+     └◀──────────── Processed overlay (WebSocket) ──────────┘
+```
+
+### Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | Mobile web browser (WebRTC, Canvas) |
+| Media relay | MediaMTX |
+| Backend | Python 3.12 + FastAPI |
+| Segmentation | SAM-3 (Meta) via TensorRT |
+| Description | PaliGemma / Gemma-4 (Google) via Transformers |
+| Transport | WebSocket + RTSP |
+| Inference runtime | TensorRT (FP16), CUDA 12.9 |
+
+---
+
+## Requirements
+
+- Python 3.12.11
+- NVIDIA GPU with TensorRT support (tested on RTX 5090)
+- CUDA 12.9 + cuDNN
+- Linux (required for TensorRT)
+- MediaMTX binary (see `rtsp-server/versions.txt` for the required version)
+- FFmpeg binary (same `versions.txt`)
+- Hugging Face account with access granted for:
+  - [`facebook/sam3`](https://huggingface.co/facebook/sam3)
+  - [`google/paligemma`](https://huggingface.co/google/paligemma) (or the Gemma-4 variant used in `vision_language_model/test.py`)
+
+---
+
+## Installation
+
+### 1. Python dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Hugging Face authentication
+
+Both models require explicit access approval on the Hugging Face model pages before downloading.
+
+```bash
+huggingface-cli login
+```
+
+See the [Hugging Face quickstart](https://huggingface.co/docs/huggingface_hub/quick-start) for details.
+
+### 3. CUDA & cuDNN
+
+Follow the [NVIDIA CUDA installation guide for Linux](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/).
+
+Verify your setup:
+
+```python
+import torch
+print(torch.cuda.is_available())
+print(torch.cuda.get_device_name(0))
+```
+
+### 4. TLS certificate (required for camera access)
+
+Modern browsers require HTTPS to access the device camera. Generate a self-signed certificate for development:
+
+```bash
+openssl x509 -in cert.csr -out cert.pem -req -signkey key.pem -days 1001
+```
+
+> **Note:** Self-signed certificates are for development only. Use a CA-issued certificate in production.
+
+### 5. Configuration
+
+Copy and fill in the root config:
+
+```bash
+cp config.json.default config.json
+```
+
+Edit `config.json`:
+
+```json
+{
+    "certified": {
+        "path": "server.pem"
+    },
+    "conection": {
+        "host": "<your-machine-ip>",
+        "port": 8443
+    }
+}
+```
+
+---
+
+## Model Export Pipeline
+
+The segmentation model must be exported from PyTorch to ONNX and then compiled to a TensorRT engine before inference. Run these steps once, from the `object-segmentation/` directory.
+
+### Step 1 — Export to ONNX
+
+```bash
+cd object-segmentation/
+python onnx_export.py
+```
+
+The exported `.onnx` file will be written to `onnx_weights/`. Inspect it visually with [Netron](https://github.com/lutzroeder/netron) if needed.
+
+Validate the export by comparing PyTorch and ONNX Runtime outputs numerically. A mean absolute difference greater than `1e-3` indicates a problem — do not proceed to TensorRT compilation until this is resolved.
+
+### Step 2 — Compile to TensorRT
+
+```bash
+python export_tensorRT.py
+```
+
+The compiled engine is written to `tensorRT_weights/`. If the script fails, verify that `libnvinfer` is on your library path:
+
+```bash
+echo $LD_LIBRARY_PATH        # should include the path to libnvinfer
+ldconfig -p | grep libnvinfer
+```
+
+---
+
+## Running the System
+
+Start each component in order.
+
+### 1. MediaMTX (media relay)
+
+Edit `rtsp-server/mediamtx.yml`:
+
+- Add the stream path entries at the end of the paths section:
+  ```yaml
+  movil_camera:
+  server_overlay:
+  ```
+- Set the listening address to your public IP:
+  ```yaml
+  rtspAddress: <YOUR_PUBLIC_IP>:8554
+  ```
+
+Start the server:
+
+```bash
+cd rtsp-server/
+./mediamtx mediamtx.yml
+```
+
+Verify the stream endpoint is reachable at `http://<host>:8889/movil_camera/`.
+
+### 2. ML inference services
+
+```bash
+# Object segmentation (SAM-3 via TensorRT)
+python sam_api.py
+
+# Vision-language description (PaliGemma)
+python gemma_api.py
+```
+
+### 3. FastAPI backend
+
+```bash
+python app.py
+```
+
+### 4. Frontend HTTPS server
+
+```bash
+cd frontend/
+python python_server_https.py
+```
+
+The frontend is served at `https://<host>:<port>`. Open this URL on the mobile device.
+
+---
+
+## Usage
+
+1. Open the frontend URL on the mobile device and grant camera permission.
+2. The live camera feed begins streaming to MediaMTX; the processed overlay is rendered on-screen.
+3. Touch and drag on the video canvas to draw a bounding box around an object.
+4. Tap the bounding box to trigger SAM-3 segmentation. The mask is tracked across subsequent frames.
+5. Tap the **+** icon at the corner of the mask to open the description panel, which shows a cropped view of the object and a PaliGemma-generated description.
+6. Tap **×** to close the panel.
+
+---
+
+## WebSocket Protocol
+
+### Client → Server
+
+| Event | Payload |
+|---|---|
+| `stream_start` | `{}` |
+| `draw_bbox` | `{ x1, y1, x2, y2 }` — normalized floats [0.0, 1.0] |
+| `segment_object` | `{ bbox: { x1, y1, x2, y2 } }` |
+| `request_description` | `{ frame_id: string }` |
+
+All coordinates are normalized to `[0.0, 1.0]` relative to the frame dimensions.
+
+### Server → Client
+
+| Event | Payload |
+|---|---|
+| `overlay_stream` | Processed video stream |
+| `tracking_update` | `{ mask_bbox: { x1, y1, x2, y2 } }` |
+| `description_ready` | `{ text: string, segment_image_url: string }` |
 
 ---
 
 ## Project Structure
 
 ```
-SAM3-TensorRT/
-├── export_tensorRT.py          # Compile ONNX model → TensorRT engine
-├── infer_onnx.py               # Static image inference via ONNX Runtime
-├── infer_pytorch_webcam.py     # Webcam inference via HuggingFace PyTorch
-├── infer_trt.py                # Static image inference via TensorRT engine
-├── infer_trt_webcam.py         # Webcam inference via TensorRT engine
-├── onnx_export.py              # Export SAM3 from HuggingFace to ONNX
-├── test_hugging_face_model_access.py  # Verify HuggingFace model access
-├── config.json                 # Shared configuration for all scripts
-└── utils/
-    ├── common.py               # TensorRT buffer allocation & CUDA helpers
-    ├── detect_postprocess.py   # Mask/box post-processing and visualization
-    ├── image_preprocess.py     # Image resizing and normalization
-    ├── pytorch_visualize.py    # PIL-based result visualization
-    └── simplify_tokenizer.py   # Standalone CLIP BPE tokenizer
+VISOR/
+├── app.py                          # FastAPI backend — WebSocket endpoints and processing loop
+├── config.json.default             # Template for root configuration
+├── frontend/
+│   └── python_server_https.py      # HTTPS server for the mobile web frontend
+├── object-segmentation/
+│   ├── onnx_export.py              # Export SAM-3 from PyTorch to ONNX
+│   ├── export_tensorRT.py          # Compile ONNX model to TensorRT engine
+│   ├── infer_pytorch_webcam.py     # Inference with PyTorch (development/validation)
+│   ├── infer_trt_webcam.py         # Inference with TensorRT engine (production)
+│   ├── utils/common.py             # TensorRT buffer allocation and inference helpers
+│   ├── logs/
+│   ├── outputs/
+│   └── tensorRT_weights/
+└── vision_language_model/
+    └── test.py                     # PaliGemma/Gemma-4 inference test
 ```
 
 ---
 
-## Pipeline
+## Configuration Reference
 
-```
-HuggingFace (facebook/sam3)
-        │
-        ▼
-  onnx_export.py          →  onnx_weights/<model>.onnx
-        │
-        ▼
-  export_tensorRT.py      →  <model>.engine
-        │
-        ├──▶ infer_trt.py            (static image)
-        └──▶ infer_trt_webcam.py     (webcam stream)
-```
+### `config.json` (root)
 
-For reference or development without TensorRT, `infer_onnx.py` and `infer_pytorch_webcam.py` provide alternative inference paths.
+Controls the frontend server.
 
----
-
-## Dependencies
-
-### Core Inference
-
-| Library | Purpose |
+| Key | Description |
 |---|---|
-| [TensorRT](https://developer.nvidia.com/tensorrt) | High-performance GPU inference engine |
-| [ONNX Runtime](https://onnxruntime.ai/) | Cross-platform ONNX inference |
-| [PyTorch](https://pytorch.org/) | Model loading, export, and reference inference |
-| [CUDA Python (`cuda-python`)](https://nvidia.github.io/cuda-python/) | Low-level CUDA memory management in `utils/common.py` |
+| `certified.path` | Path to the TLS certificate file |
+| `conection.host` | IP address or hostname of the machine running the frontend |
+| `conection.port` | Port the frontend server listens on |
 
-### Model & Tokenizer
+### `object-segmentation/config.json`
 
-| Library | Purpose |
+Controls model export and inference parameters. Key sections:
+
+| Section | Description |
 |---|---|
-| [Transformers (HuggingFace)](https://huggingface.co/docs/transformers) | `Sam3Model`, `Sam3Processor` |
-| [huggingface_hub](https://huggingface.co/docs/huggingface_hub) | Model authentication and download |
-| [regex](https://pypi.org/project/regex/) | Unicode-aware BPE tokenization in `SimpleCLIPBPETokenizer` |
-
-The tokenizer is a simplified implementation of the [CLIP BPE tokenizer](https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTokenizer), requiring a `vocab.json` and `merges.txt` from the SAM3 model files.
-
-### Image Processing & Visualization
-
-| Library | Purpose |
-|---|---|
-| [OpenCV (`cv2`)](https://opencv.org/) | Image I/O, resizing, webcam capture, drawing |
-| [NumPy](https://numpy.org/) | Array operations throughout the pipeline |
-| [Pillow (PIL)](https://pillow.readthedocs.io/) | RGBA compositing for mask overlays in PyTorch visualizer |
+| `onnx_export` | Device, ONNX opset version, output path, sample image URL |
+| `export_tensorRT` | Input ONNX path, output engine name |
+| `infer_trt_webcam` | Engine path, prompt, output shapes, iteration limit |
+| `metadata` | Tokenizer vocabulary and merge files |
 
 ---
 
-## Configuration
+## Development Notes
 
-All scripts read from `config.json`. Each top-level key corresponds to a script:
-
-```json
-{
-  "metadata": {
-    "vocab_file": "models/vocab.json",
-    "merges_file": "models/merges.txt"
-  },
-  "onnx_export": {
-    "device": "cuda",
-    "prompt": "person",
-    "image_url": "...",
-    "onnx_path": "sam3.onnx",
-    "dynamo": false,
-    "opset_version": 18
-  },
-  "export_tensorRT": {
-    "model_path": "onnx_weights/sam3.onnx",
-    "output_name": "sam3.engine"
-  },
-  "infer_trt": {
-    "image_url": "demo/image.jpg",
-    "engine_file_path": "sam3.engine",
-    "prompt": "person",
-    "outputs_shapes": [[1, 200, 256, 256], [1, 200, 4], [1, 200]],
-    "score_thr": 0.4,
-    "mask_thr": 0.5,
-    "max_inst": 30,
-    "boxes_normalized": true,
-    "output_image": "output.jpg"
-  },
-  "infer_trt_webcam": { "..." : "..." },
-  "infer_onnx": { "..." : "..." },
-  "infer_pytorch_webcam": { "..." : "..." }
-}
-```
+- **PyTorch fallback:** `infer_pytorch_webcam.py` runs inference directly with the Hugging Face model, without TensorRT. Use it to validate model behavior or when a GPU with TensorRT is not available.
+- **TensorRT FP16:** The export script enables FP16 precision automatically when the GPU supports it (`builder.platform_has_fast_fp16`). Optimization level is set to 5 for maximum engine performance at the cost of a longer build time.
+- **Frame/touch synchronization:** The backend matches touch events to video frames within a ±200 ms window using timestamps.
+- **Parallel inference:** PaliGemma description generation runs independently of the SAM-3 segmentation and tracking loop to avoid blocking the video pipeline.
 
 ---
 
-## Usage
 
-### 1. Verify model access
-
-```bash
-python test_hugging_face_model_access.py
-```
-
-### 2. Export to ONNX
-
-```bash
-python onnx_export.py
-```
-
-### 3. Compile TensorRT engine
-
-```bash
-python export_tensorRT.py
-```
-
-FP16 is enabled automatically if the GPU supports it. Optimization level is set to 5 (longest build, fastest runtime).
-
-### 4. Run inference
-
-**TensorRT — static image:**
-```bash
-python infer_trt.py
-```
-
-**TensorRT — webcam:**
-```bash
-python infer_trt_webcam.py
-```
-
-**ONNX Runtime — static image:**
-```bash
-python infer_onnx.py
-```
-> ⚠️ ONNX inference has a known post-processing dimension mismatch and is a work in progress.
-
-**PyTorch — webcam:**
-```bash
-python infer_pytorch_webcam.py
-```
-
----
-
-## Key Concepts
-
-- **[Instance Segmentation](https://paperswithcode.com/task/instance-segmentation)** — detecting and masking individual object instances, as opposed to semantic segmentation which labels pixels by class only.
-- **[ONNX Export](https://pytorch.org/docs/stable/onnx.html)** — converting a PyTorch model to the open ONNX interchange format, enabling deployment outside of PyTorch.
-- **[TensorRT Engine Compilation](https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html)** — optimizing an ONNX graph for a specific GPU, including kernel fusion, precision calibration (FP16/INT8), and layer tuning.
-- **[CLIP BPE Tokenizer](https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTokenizer)** — byte-pair encoding tokenizer used to encode open-vocabulary text prompts into token IDs and attention masks for the model.
-- **[FP16 Inference](https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#mixed-precision)** — running model weights and activations in 16-bit floating point for approximately 2× throughput on supported NVIDIA GPUs (Turing and later).
-
----
-
-## Notes
-
-- The model is wrapped in `Sam3ONNXWrapper` during export to produce clean `pixel_values / input_ids / attention_mask` inputs and `pred_masks / semantic_seg / pred_logits` outputs.
-- `utils/common.py` is derived from [NVIDIA's TensorRT Python samples](https://github.com/NVIDIA/TensorRT/tree/main/samples/python) and handles pinned-memory buffer allocation and async CUDA memcpy.
-- Webcam inference benchmarks print average frame time every 100 iterations.
-- Base repositories: github.com/taifyang/sam-inference  - github.com/dataplayer12/SAM3-TensorRT
