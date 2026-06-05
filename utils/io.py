@@ -1,0 +1,128 @@
+import json
+import logging
+import datetime as dt
+import time
+import os
+from typing import Dict
+
+def get_config(path: str, section: str) -> Dict:
+    """
+    
+        Get section of configuration in JSON format
+
+    Args:
+        path (str): path to the file of configuration
+        section (str): section key in configuration
+
+    Raises:
+        Exception: check if the file exists
+        Exception: check if the section exits
+
+    Returns:
+        Dict: return the section of configuration
+    """    
+
+    if not os.path.isfile(path):
+        msg = f"config file not exists: {path}"
+        logging.error(msg)
+        print(msg)
+        raise Exception("msg")
+    
+    try:
+        with open(path) as f:
+            config = json.load(f)
+    except:
+        msg = f"Can not load config json: {path}"
+        logging.error(msg)
+        print(msg)
+
+
+    if not section in config:
+        msg = f"section config not exists: {path}"
+        logging.error(msg)
+        print(msg)
+        raise Exception("msg")
+
+    config = config[section]
+
+    return config
+
+
+def oldest_file_in_tree(root_folder: str, extension: str=".log") -> str:
+    """
+    
+        find the oldest file in folder
+
+    Args:
+        root_folder (str): path to folder to process
+        extension (str, optional): filter files by ext. Defaults to ".log".
+
+    Raises:
+        Exception: check if the folder exists
+
+    Returns:
+        str: oldest file in folder
+    """    
+
+    if not os.path.isfile(root_folder):
+        msg = f"folder not exists: {root_folder}"
+        logging.error(msg)
+        print(msg)
+        raise Exception("msg")
+
+    return min(
+        (os.path.join(dirname, filename)
+        for dirname, dirnames, filenames in os.walk(root_folder)
+        for filename in filenames
+        if filename.endswith(extension)), key=lambda fn: os.stat(fn).st_mtime)
+
+
+def set_logger(LOG_PATH: str, service_name: str) -> None:
+    """
+    
+        Iniciates a logger to code flux
+
+    Args:
+        LOG_PATH (str): folder to stores the logs
+        service_name (str): name of the service to track
+
+    Raises:
+        Exception: check if the folder exists
+        Exception: check if the folder have more logs that MAX_LOGS
+
+    """    
+
+    config = get_config("../config.json", "logs") 
+
+    timestamp = dt.datetime.fromtimestamp(time.time()).strftime(config["time_format"])
+
+
+    if not os.path.isdir(LOG_PATH):
+        msg = f"logs folder not exists: {LOG_PATH}"
+        logging.error(msg)
+        print(msg)
+        raise Exception("msg")
+    
+    n_files_in_logs = len([name for name in os.listdir('.') if os.path.isfile(name)])
+    
+
+    if n_files_in_logs > config["MAX_LOGS"]:
+        oldest_log = oldest_file_in_tree(LOG_PATH)
+        try:
+            os.remove(oldest_log)
+        except:
+            msg = f"MAX_LOGS files reached, fail to remove the oldest: {LOG_PATH}"
+            logging.error(msg)
+            print(msg)
+            raise Exception("msg")
+
+
+    LOG_FILE = f"{LOG_PATH}/{service_name}_{timestamp}.log"
+    logFormatter = logging.Formatter("%(levelname)s %(asctime)s %(processName)s %(message)s")
+    fileHandler = logging.FileHandler("{0}".format(LOG_FILE))
+    fileHandler.setFormatter(logFormatter)
+    rootLogger = logging.getLogger()
+    rootLogger.addHandler(fileHandler)
+    rootLogger.setLevel(logging.INFO)
+
+
