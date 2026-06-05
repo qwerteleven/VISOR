@@ -9,5 +9,6 @@ onnx__MatMul*
 *.jpg
 rtsp-server/
 *.pem
+*.log
 
 config.json
