@@ -1,8 +1,4 @@
 {
-    "metadata": {
-        "vocab_file": "metadata/vocab.json",
-        "merges_file": "metadata/merges.txt"
-    },
     "export_tensorRT": {
         "model_path": "onnx_weights/sam3_dynamic.onnx",
         "output_name": "tensorRT_weights/sam-3.engine"
@@ -17,43 +13,19 @@
         "opset_version": 18
 
     },
-    "infer_onnx": {
-        "image_url": "image_test/person_test.jpeg",
-        "onnx_file_path": "onnx_weights/sam3_dynamic.onnx",
-        "providers": ["CUDAExecutionProvider", "CPUExecutionProvider"],
-        "output_image": "outputs/onnx_inference_result.jpg",
-        "score_thr": 0.6,
-        "mask_thr": 0.5,
-        "max_inst": 30,
-        "prompt": "person"
-    },
-    "infer_pytorch_webcam":{
-        "device": "cuda",
-        "prompt": "person",
-        "benchmark": true,
-        "mask_alpha": 0.45,
+    "demo_pytorch_webcam":{
+        "max_iteration": 20000,
+        "prompt": "object inside box",
+        "score_thr": 0.5,
         "mask_threshold": 0.5,
-        "box_width": 3,
-        "postprocess_threshold": 0.5,
-        "postprocess_mask_threshold": 0.5
+        "VISOR_NAME": "Test"
     },
-    "infer_trt": {
-        "image_url": "image_test/person_test.jpeg",
-        "engine_file_path": "tensorRT_weights/sam-3.engine",
-        "prompt": "person",
-        "score_thr": 0.6,
-        "mask_thr": 0.5,
-        "max_inst": 30,
-        "boxes_normalized": true,
-        "outputs_shapes": [[1, 200, 288, 288], [1,200,4], [1, 200], [1,1], [1,1,288,288], [6,1,200,4]],
-        "output_image" : "outputs/tensorRT_inference_result.jpg"
-    },
-    "infer_trt_webcam": {
+    "demo_trt_webcam": {
         "max_iteration": 20000,
         "outputs_shapes": [[1, 200, 288, 288], [1,200,4], [1, 200], [1,1], [1,1,288,288], [6,1,200,4]],
         "prompt": "object inside box",
         "score_thr": 0.5,
-        "mask_thr": 0.5,
+        "mask_threshold": 0.5,
         "max_inst": 300,
         "boxes_normalized": true,
         "engine_file_path": "tensorRT_weights/sam-3.engine",

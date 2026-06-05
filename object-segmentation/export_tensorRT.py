@@ -10,7 +10,7 @@ sys.path.append(root_folder)
 
 from utils.io import get_config, set_logger
 config = get_config("config.json", "export_tensorRT") 
-set_logger("logs", os.path.basename(sys.argv[0]))
+set_logger("../logs", os.path.basename(sys.argv[0]))
 
 
 logger = trt.Logger(trt.Logger.WARNING)
@@ -54,8 +54,9 @@ if builder.platform_has_fast_fp16:
 try:
     config_build.builder_optimization_level = 5      # 0–5; 5 = longest build, fastest engine
 except AttributeError:
-    logging.error("older TRT version")
-    print("older TRT version")
+    msg = "older TRT version"
+    logging.error(msg)
+    print(msg)
 
 serialized_engine = builder.build_serialized_network(network, config_build)
 
@@ -64,6 +65,7 @@ try:
     with open(config["output_name"], "wb") as f:
         f.write(serialized_engine)
 except:
-    logging.error("can not write the engine, check disk space, and logs")
-    print("can not write the engine, check disk space, and logs")
+    msg = "can not write the engine, check disk space, and logs"
+    logging.error(msg)
+    print(msg)
 

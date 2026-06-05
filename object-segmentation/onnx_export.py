@@ -3,66 +3,61 @@ from pathlib import Path
 from transformers.models.sam3 import Sam3Processor, Sam3Model
 from PIL import Image
 import requests
-import json
 import cv2
 import numpy as np
+import sys
+import os
+import logging
 
 
-with open("config.json") as f:
-    config = json.load(f)
+root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(root_folder)
 
-config = config["onnx_export"]
-
+from utils.io import get_config, set_logger
+config = get_config("config.json", "onnx_export") 
+set_logger("../logs", os.path.basename(sys.argv[0]))
 
 
 device = config["device"]
 
-# 1. Load model & processor
-model = Sam3Model.from_pretrained("facebook/sam3").to(device)
-processor = Sam3Processor.from_pretrained("facebook/sam3")
+try:
+    model = Sam3Model.from_pretrained("facebook/sam3").to(device)
+    processor = Sam3Processor.from_pretrained("facebook/sam3")
+except:
+    msg = "can not load model"
+    logging.error(msg)
+    print(msg)
+
 model.eval()
 
-prompt = config["prompt"]
 
-# 2. Build a sample batch (same as your example)
-image_url = config["image_url"]
-image = Image.open(requests.get(image_url, stream=True).raw).convert("RGB")
-
-
-radius = 5          # In pixels
-color = (0, 0, 255) # BGR format
-thickness = 2     # Thickness in pixels (-1 fills the circle)
+try:
+    image = Image.open(requests.get(config["image_url"], stream=True).raw).convert("RGB")
+except:
+    msg = "can not load image for traking ONNX graph"
+    logging.error(msg)
+    print(msg)
 
 
 ## inputs for create a inference with ONNX that activates a significative input
 image = np.asarray(image)
 image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-image = cv2.rectangle(image, [225, 86], [540, 414], color, thickness)
+image = cv2.rectangle(image, [225, 86], [540, 414],  (0, 0, 255), 2 )
 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 image = Image.fromarray(image)
 input_boxes = [[[225, 86, 540, 414]]]
 input_boxes_labels = [[1]] 
 
 
-inputs = processor(images=image, text=prompt, 
-            input_boxes=input_boxes,
-            input_boxes_labels=input_boxes_labels,
-            return_tensors="pt").to(device)
-
-pixel_values = inputs["pixel_values"]
-input_ids = inputs["input_ids"]
-attention_mask = inputs["attention_mask"]
-input_boxes = inputs["input_boxes"]
-input_boxes_labels = inputs["input_boxes_labels"]
+inputs = processor(
+    images=image,
+    text=config["prompt"], 
+    input_boxes=input_boxes,
+    input_boxes_labels=input_boxes_labels,
+    return_tensors="pt"
+).to(device)
 
 
-print("input_ids", input_ids.shape, input_ids.dtype)
-print(input_ids)
-print()
-print("attention_mask", attention_mask.shape, attention_mask.dtype)
-print(attention_mask)
-
-# 3. Wrap Sam3Model so the ONNX graph has clean inputs/outputs
 class Sam3ONNXWrapper(torch.nn.Module):
     def __init__(self, sam3):
         super().__init__()
@@ -86,13 +81,33 @@ output_dir = Path(f"onnx_weights")
 output_dir.mkdir(exist_ok=True)
 onnx_path = str(output_dir /  config["onnx_path"])
 
-torch.onnx.export(
-    model,
-    (pixel_values, input_ids, attention_mask, input_boxes, input_boxes_labels),
-    onnx_path,
-    input_names=["pixel_values", "input_ids", "attention_mask", "input_boxes", "input_boxes_labels"],
-    output_names=["pred_masks", "pred_boxes", "pred_logits", 'presence_logits', 'semantic_seg', 'decoder_reference_boxes'],
-    dynamo=config["dynamo"],
-    opset_version=config["opset_version"],
-)
-print(f"Exported to {onnx_path}")
+pixel_values = inputs["pixel_values"]
+input_ids = inputs["input_ids"]
+attention_mask = inputs["attention_mask"]
+input_boxes = inputs["input_boxes"]
+input_boxes_labels = inputs["input_boxes_labels"]
+
+try: 
+
+    msg = "Start ONNX export..."
+    logging.info(msg)
+    print(msg)
+
+    torch.onnx.export(
+        model,
+        (pixel_values, input_ids, attention_mask, input_boxes, input_boxes_labels),
+        onnx_path,
+        input_names=["pixel_values", "input_ids", "attention_mask", "input_boxes", "input_boxes_labels"],
+        output_names=["pred_masks", "pred_boxes", "pred_logits", 'presence_logits', 'semantic_seg', 'decoder_reference_boxes'],
+        dynamo=config["dynamo"],
+        opset_version=config["opset_version"],
+    )
+    msg = f"Exported to {onnx_path}"
+    logging.info(msg)
+    print(msg)
+    
+except:
+    msg = "can not export ONNX model"
+    logging.error(msg)
+    print(msg)
+

@@ -5,5 +5,13 @@
     "conection": {
         "host":  "",
         "port": 0
+    },
+    "logs": {
+        "MAX_LOGS": 100,
+        "time_format": "%Y_%m_%d-%H_%M_%S"
+    },
+    "streaming_overlay": {
+        "color": [0, 0, 255], 
+        "thickness": 2    
     }
 }
