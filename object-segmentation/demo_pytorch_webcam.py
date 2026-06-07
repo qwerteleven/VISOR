@@ -92,7 +92,7 @@ class sam3_model():
         """       
 
         if len(self.user_ref_point) == 2:
-            image = draw_user_rectangle(image, self.user_ref_point, self.overlay_config)
+            image = draw_user_rectangle(image, self.overlay_config, self.user_ref_point)
 
         
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
