@@ -1,26 +1,45 @@
 
 import asyncio
 import json
-import cv2
-import numpy as np
+import os 
+import sys
 from fastapi import FastAPI, WebSocket
 from collections import deque
 
+root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(root_folder)
+
+
+from utils.io import get_config, set_logger
+config = get_config("config.json", "demo_trt_webcam") 
+set_logger("../logs", os.path.basename(sys.argv[0]))
+
+
+from utils.streaming import streaming_pipeline_vidgear
+from demo_trt_webcam import sam3_model
+
 app = FastAPI()
 
-# Colas compartidas entre los dos endpoints
 frame_queue = asyncio.Queue(maxsize=5)
-touch_queue = deque(maxlen=20)   # últimos 20 toques
-
-# Cola de resultados para enviar a la web
+touch_queue = deque(maxlen=20)   
 result_queue = asyncio.Queue()
 
-@app.websocket("/video")
+
+@app.websocket("/load")
 async def video_ws(ws: WebSocket):
     await ws.accept()
     async for data in ws.iter_bytes():
-        # data son los bytes del JPEG
+        
         await frame_queue.put((data, asyncio.get_event_loop().time()))
+
+
+@app.websocket("/unload")
+async def video_ws(ws: WebSocket):
+    await ws.accept()
+    async for data in ws.iter_bytes():
+        
+        await frame_queue.put((data, asyncio.get_event_loop().time()))
+
 
 @app.websocket("/touch")
 async def touch_ws(ws: WebSocket):
@@ -29,44 +48,28 @@ async def touch_ws(ws: WebSocket):
         event = json.loads(text)
         touch_queue.append(event)
 
-@app.websocket("/results")
-async def results_ws(ws: WebSocket):
-    """La página web se conecta aquí para recibir resultados"""
-    await ws.accept()
-    while True:
-        result = await result_queue.get()
-        await ws.send_json(result)
 
-# Tarea de procesado — corre en paralelo
 async def procesador():
-    while True:
-        frame_bytes, frame_ts = await frame_queue.get()
+    
+    overlay_config = get_config("../config.json", "streaming_overlay")
+    output_config = get_config("../config.json", "output_vidgear")
+    input_config = get_config("../config.json", "input_vidgear")
+    output_source = get_config("../config.json", "output_source")
+    input_source = get_config("../config.json", "input_source")
+    ml_model = sam3_model(config["engine_file_path"], config, overlay_config)
+    ml_model.load()
 
-        # Buscar toques cercanos en tiempo (±200ms)
-        toques_cercanos = [
-            t for t in touch_queue
-            if abs(t["ts"] / 1000 - frame_ts) < 0.2
-        ]
+    streaming_pipeline_vidgear(config, ml_model, input_source, input_config, output_source, output_config)
 
-        # Decodificar frame con OpenCV
-        nparr = np.frombuffer(frame_bytes, np.uint8)
-        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-        resultado = {"toques": toques_cercanos, "frame_ts": frame_ts}
 
-        # Si hay toque, analizar la zona tocada
-        if toques_cercanos and frame is not None:
-            h, w = frame.shape[:2]
-            for toque in toques_cercanos:
-                px = int(toque["x"] * w)
-                py = int(toque["y"] * h)
-                # Recortar región 50x50 alrededor del toque
-                roi = frame[max(0,py-25):py+25, max(0,px-25):px+25]
-                # Aquí aplicas tu procesado: ML, color dominante, OCR…
-                resultado["zona_tocada"] = {"x": px, "y": py}
-
-        await result_queue.put(resultado)
-
-@app.on_event("startup")
-async def startup():
+async def lifespan(app: FastAPI):
+    
     asyncio.create_task(procesador())
+    yield
+
+
+
+app = FastAPI(docs_url=None, redoc_url=None, lifespan=lifespan)
+
+
