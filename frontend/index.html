@@ -205,27 +205,84 @@
 
     try {
 
-      let streaming_path = null 
+      // 1. Create PC with low-latency hints
+      const whipPc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+        // Minimize ICE gathering time
+        iceCandidatePoolSize: 1,
+        bundlePolicy: 'max-bundle',
+        rtcpMuxPolicy: 'require',
+      });
 
-      readJsonFile('../config.json')
-        .then(data => {
-            streaming_path = `http://${data.conection.host}:${data.conection.port}/movil_camera/whip`
-        })
-        .catch(error => {
-            console.error('Failed to load configuration:', error)
-        })
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
 
+      // 2. Add tracks with encoding parameters for low latency
+      for (const track of stream.getTracks()) {
+        const sender = whipPc.addTrack(track, stream);
 
+        // Set encoding constraints on video sender
+        if (track.kind === 'video') {
+          const params = sender.getParameters();
+          if (!params.encodings?.length) params.encodings = [{}];
+
+          params.encodings[0] = {
+            ...params.encodings[0],
+            maxBitrate: 2_500_000,       // 2.5 Mbps cap
+            maxFramerate: 30,
+            networkPriority: 'high',
+            priority: 'high',
+            // Key: disable RTX (retransmission) to avoid buffering on loss
+            // rtx disabled via SDP munging below
+          };
+          await sender.setParameters(params);
+        }
+      }
+
+      // 3. Create offer and munge SDP for low latency
+      const offer = await whipPc.createOffer({
+        offerToReceiveAudio: false,
+        offerToReceiveVideo: false,
+        voiceActivityDetection: false,  // reduce audio processing delay
+      });
+
+      // 4. Munge SDP: remove RTX (causes retransmit buffering) and set low jitter buffer hint
+      let sdp = offer.sdp
+        // Remove RTX payload types (they buffer packets waiting for retransmits)
+        .replace(/a=rtpmap:\d+ rtx\/\d+\r\n/g, '')
+        .replace(/a=fmtp:\d+ apt=\d+\r\n/g, '')
+        // Force H264 baseline profile (lower encoder latency than high profile)
+        .replace(
+          /profile-level-id=\w+/g,
+          'profile-level-id=42e01f'   // Baseline 3.1
+        );
+
+      await whipPc.setLocalDescription({ type: 'offer', sdp });
+
+      // 5. Don't wait for all ICE candidates — send immediately (Trickle ICE workaround)
+      await new Promise(resolve => {
+        if (whipPc.iceGatheringState === 'complete') return resolve();
+        whipPc.onicegatheringstatechange = () => {
+          if (whipPc.iceGatheringState === 'complete') resolve();
+        };
+        // Timeout fallback — don't wait more than 300ms for ICE
+        setTimeout(resolve, 300);
+      });
+
+      const streaming_path = `http://192.168.0.10:8889/movil_camera/whip`;
 
       const res = await fetch(streaming_path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/sdp' },
-        body: offer.sdp
+        body: whipPc.localDescription.sdp,  // use final SDP after ICE gathering
       });
+
       if (!res.ok) throw new Error(`WHIP error ${res.status}`);
       const answerSdp = await res.text();
       await whipPc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
       console.log('WHIP connected ✓');
+
+
+
     } catch (e) {
       console.warn('WHIP failed:', e.message);
     }
