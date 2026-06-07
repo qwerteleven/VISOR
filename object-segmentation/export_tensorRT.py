@@ -64,7 +64,7 @@ serialized_engine = builder.build_serialized_network(network, config_build)
 try: 
     with open(config["output_name"], "wb") as f:
         f.write(serialized_engine)
-except:
+except FileNotFoundError:
     msg = "can not write the engine, check disk space, and logs"
     logging.error(msg)
     print(msg)

@@ -31,7 +31,7 @@ def get_config(path: str, section: str) -> Dict:
     try:
         with open(path) as f:
             config = json.load(f)
-    except:
+    except FileNotFoundError:
         msg = f"Can not load config json: {path}"
         logging.error(msg)
         print(msg)
@@ -64,7 +64,7 @@ def oldest_file_in_tree(root_folder: str, extension: str=".log") -> str:
         str: oldest file in folder
     """    
 
-    if not os.path.isfile(root_folder):
+    if not os.path.isdir(root_folder):
         msg = f"folder not exists: {root_folder}"
         logging.error(msg)
         print(msg)
@@ -110,7 +110,7 @@ def set_logger(LOG_PATH: str, service_name: str) -> None:
         oldest_log = oldest_file_in_tree(LOG_PATH)
         try:
             os.remove(oldest_log)
-        except:
+        except OSError:
             msg = f"MAX_LOGS files reached, fail to remove the oldest: {LOG_PATH}"
             logging.error(msg)
             print(msg)

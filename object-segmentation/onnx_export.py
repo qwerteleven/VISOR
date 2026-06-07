@@ -8,7 +8,7 @@ import numpy as np
 import sys
 import os
 import logging
-
+import traceback
 
 root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(root_folder)
@@ -23,17 +23,18 @@ device = config["device"]
 try:
     model = Sam3Model.from_pretrained("facebook/sam3").to(device)
     processor = Sam3Processor.from_pretrained("facebook/sam3")
-except:
+except Exception as e:
     msg = "can not load model"
     logging.error(msg)
     print(msg)
+    print(traceback.format_exc())
 
 model.eval()
 
 
 try:
     image = Image.open(requests.get(config["image_url"], stream=True).raw).convert("RGB")
-except:
+except FileNotFoundError:
     msg = "can not load image for traking ONNX graph"
     logging.error(msg)
     print(msg)
@@ -106,8 +107,10 @@ try:
     logging.info(msg)
     print(msg)
     
-except:
+except Exception as e:
     msg = "can not export ONNX model"
     logging.error(msg)
     print(msg)
+    print(traceback.format_exc())
+    
 

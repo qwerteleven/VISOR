@@ -36,7 +36,7 @@ class sam3_model():
 
     """    
 
-    def __init__(self: object, engine_path: str, config: Dict) -> None:
+    def __init__(self: object, engine_path: str, config: Dict, overlay_config: Dict) -> None:
         """
 
             Create a object for handle SAM model
@@ -67,6 +67,7 @@ class sam3_model():
         # attention image region
         self.user_ref_point = []
         self.config = config
+        self.overlay_config = overlay_config
         self.input_boxes_labels = [[1]] 
         self.input_boxes = [[[]]]
 
@@ -84,7 +85,7 @@ class sam3_model():
         try:
             with open(self.engine_path, "rb") as f, trt.Runtime(logger) as runtime:
                 self.engine = runtime.deserialize_cuda_engine(f.read())
-        except:
+        except FileNotFoundError:
             msg = "can not load engine on the device"
             logging.error(msg)
             print(msg)
@@ -141,7 +142,7 @@ class sam3_model():
         """       
 
         if len(self.user_ref_point) == 2:
-            image = draw_user_rectangle(image, self.user_ref_point)
+            image = draw_user_rectangle(image, self.user_ref_point, self.overlay_config)
 
         
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -199,7 +200,8 @@ class sam3_model():
 
 if __name__ == "__main__":
     
-    ml_model = sam3_model(config["engine_file_path"], config)
+    overlay_config = get_config("../config.json", "streaming_overlay")
+    ml_model = sam3_model(config["engine_file_path"], config, overlay_config)
     ml_model.load()
     streaming_pipeline_OpenCV(config, ml_model)
 

@@ -1,6 +1,7 @@
 import cv2
 from typing import Dict
 import logging
+import traceback
 
 from utils.user_event import click_and_crop
 import utils.globals as globals
@@ -28,8 +29,8 @@ def streaming_pipeline_OpenCV(config: Dict, ml_model: object, cam: object = None
 
         try:
             cam = cv2.VideoCapture(0)
-        except:
-            msg("Can not open webcam")
+        except SystemError:
+            msg = "Can not open webcam"
             logging.error(msg)
             print(msg)
             raise Exception(msg)
@@ -51,10 +52,11 @@ def streaming_pipeline_OpenCV(config: Dict, ml_model: object, cam: object = None
         try:
             ml_model.update_attention_region(globals.user_ref_point, image.shape)
             output_image = ml_model(image)
-        except:
+        except Exception as e:
             msg = "can not make inference with ml_model"
             logging.error(msg)
             print(msg)
+            print(traceback.format_exc())
             raise Exception(msg)
 
         cv2.imshow(config["VISOR_NAME"], output_image)

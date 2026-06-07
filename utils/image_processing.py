@@ -3,7 +3,7 @@ import matplotlib
 from PIL import Image
 import numpy as np
 import torch
-from typing import List
+from typing import List, Dict
 import cv2
 from utils.io import get_config
 
@@ -38,7 +38,7 @@ def overlay_masks(image: np.array, masks: torch.Tensor) -> np.array:
     return image
 
 
-def draw_user_rectangle(image: np.array, user_ref_point: List) -> np.array:
+def draw_user_rectangle(image: np.array, config: Dict, user_ref_point: List) -> np.array:
     """
     
         Draw  the rectagle of interest of the user on overlay streaming
@@ -51,7 +51,6 @@ def draw_user_rectangle(image: np.array, user_ref_point: List) -> np.array:
         np.array: blended image with box of interest
     """    
 
-    config = get_config("../config.json", "streaming_overlay") 
     image_shape = image.shape
 
     a = (
