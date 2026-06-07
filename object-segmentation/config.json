@@ -30,5 +30,49 @@
         "boxes_normalized": true,
         "engine_file_path": "tensorRT_weights/sam-3.engine",
         "VISOR_NAME": "Test"
-    }
+    },
+    "input_vidgear": {
+        "THREADED_QUEUE_MODE": false, 
+        "CAP_PROP_BUFFERSIZE": 1,
+        "-avioflags": "direct",
+        "-sync": "ext",
+        "-fflags": "nobuffer",         
+        "-flags": "low_delay",         
+        "-analyzeduration": "0",       
+        "-probesize": "32",           
+        "-rtsp_transport": "udp",      
+        "-vcodec": null,              
+        "-enforce_cv_patch": true,   
+        "-ffprefixes": [
+            "-vsync", "0",            
+            "-hwaccel", "cuda",      
+            "-hwaccel_output_format", "cuda"
+        ],
+        "-custom_resolution": "null", 
+        "-framerate": "null",       
+        "-vf": [
+            "scale_cuda=640:480, hwdownload, format=nv12" 
+        ]
+    },
+    "output_vidgear": {
+        "-vcodec": "h264_nvenc",
+        "-f": "flv",
+        "-preset": "p1",
+        "-tune": "ll",
+        "-rc": "cbr",
+        "-g": "30",
+        "-pix_fmt": "yuv420p",
+        "-zerolatency": "1",     
+        "-delay": "0",            
+        "-b:v": "2500k",          
+        "-maxrate": "2500k",   
+        "-bufsize": "500k",      
+        "-rc-lookahead": "0",  
+        "-no-scenecut": "1",     
+        "-forced-idr": "1",   
+        "-bf": "0"         
+    },
+    "output_source": "rtmp://192.168.0.10:1935/movil_camera_2",
+    "input_source": "rtsp://192.168.0.10:8554/movil_camera"
+
 }
