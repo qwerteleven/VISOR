@@ -5,7 +5,6 @@ import numpy as np
 import torch
 from typing import List, Dict
 import cv2
-from utils.io import get_config
 
 def overlay_masks(image: np.array, masks: torch.Tensor) -> np.array:
     """
