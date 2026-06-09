@@ -2,6 +2,7 @@ import ssl
 import json
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
+
 def create_secure_context(certfile, keyfile):
     """Create SSLContext with secure defaults."""
     # TLS 1.2+ only, secure ciphers
@@ -23,10 +24,10 @@ with open("../config.json") as f:
     config = json.load(f)
 
 
-host = config["conection"]["host"]
-port = config["conection"]["port"]
+host = config["connection"]["host"]
+port = config["connection"]["port"]
 
-context = create_secure_context(config["certified"]["path"], config["certified"]["path"])
+context = create_secure_context(config["certified"], config["keyfile"])
 
 httpd = HTTPServer((host, port), SimpleHTTPRequestHandler)
 httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
