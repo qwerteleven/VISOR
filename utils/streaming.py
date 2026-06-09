@@ -7,6 +7,7 @@ from vidgear.gears import CamGear
 from vidgear.gears import WriteGear
 
 
+from utils.io import get_config
 from utils.user_event import click_and_crop
 import utils.globals as globals
 
@@ -71,7 +72,7 @@ def streaming_pipeline_OpenCV(config: Dict, ml_model: object, cam: object = None
 
 
 
-def streaming_pipeline_vidgear(config: Dict, ml_model: object, input_source: str, input_config: Dict, output_source: str, output_config: Dict, custom_ffmpeg: str = "../rtsp-server/ffmpeg.exe") -> None:
+def streaming_pipeline_vidgear(config: Dict, ml_model: object, input_source: str, input_config: Dict, output_source: str, output_config: Dict) -> None:
     """
     
         Takes a input of streaming, executes the ml model over the frames and stremaing the result to rtsp-server
@@ -83,12 +84,14 @@ def streaming_pipeline_vidgear(config: Dict, ml_model: object, input_source: str
         input_config (Dict): config for the FFMPEG, by default use h264_cuid
         output_source (str): url to streaming the procesed frames, can be a disk path
         output_config (Dict): config for the FFMPEG, by default use h264_nvenc
-        custom_ffmpeg (str, optional): path to the executable of FFMPEG. Defaults to "../rtsp-server/ffmpeg.exe".
 
     Raises:
         Exception: check if can read frames from input source
         Exception: check if can do the inference over the frame
     """    
+    
+    custom_ffmpeg = get_config("config.json", "custom_ffmpeg") 
+
     stream = CamGear(
         source = input_source, 
         **input_config, 

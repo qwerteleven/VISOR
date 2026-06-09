@@ -4,6 +4,7 @@ import datetime as dt
 import time
 import os
 from typing import Dict
+import traceback
 
 def get_config(path: str, section: str) -> Dict:
     """
@@ -30,7 +31,14 @@ def get_config(path: str, section: str) -> Dict:
     
     try:
         with open(path) as f:
-            config = json.load(f)
+            try:
+                config = json.load(f)
+            except json.JSONDecodeError as e:
+                msg = "invalid json format"
+                logging.error(msg)
+                print(msg)
+                print(traceback.format_exc())
+
     except FileNotFoundError:
         msg = f"Can not load config json: {path}"
         logging.error(msg)

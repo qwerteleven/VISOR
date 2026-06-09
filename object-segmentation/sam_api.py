@@ -51,8 +51,8 @@ async def touch_ws(ws: WebSocket):
 async def procesador():
     
     overlay_config = get_config("../config.json", "streaming_overlay")
-    output_config = get_config("../config.json", "output_vidgear")
-    input_config = get_config("../config.json", "input_vidgear")
+    output_config = get_config("config.json", "output_vidgear")
+    input_config = get_config("config.json", "input_vidgear")
     output_source = get_config("../config.json", "output_source")
     input_source = get_config("../config.json", "input_source")
     ml_model = sam3_model(config["engine_file_path"], config, overlay_config)
