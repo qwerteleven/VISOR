@@ -18,7 +18,6 @@ set_logger("../logs", os.path.basename(sys.argv[0]))
 from utils.streaming import streaming_pipeline_vidgear
 from demo_trt_webcam import sam3_model
 
-app = FastAPI()
 
 frame_queue = asyncio.Queue(maxsize=5)
 touch_queue = deque(maxlen=20)   

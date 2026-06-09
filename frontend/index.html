@@ -267,8 +267,10 @@
         // Timeout fallback — don't wait more than 300ms for ICE
         setTimeout(resolve, 300);
       });
-
-      const streaming_path = `http://192.168.0.10:8889/movil_camera/whip`;
+      
+      
+      const data = require('../config.json');
+      const streaming_path = data.input_source;
 
       const res = await fetch(streaming_path, {
         method: 'POST',
