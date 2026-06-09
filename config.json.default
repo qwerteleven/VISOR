@@ -1,8 +1,7 @@
 {
-    "certified": {
-        "path": "server.pem"
-    },
-    "conection": {
+    "certified": "server.pem",
+    "keyfile": "server.pem",
+    "connection": {
         "host":  "",
         "port": 0
     },
@@ -13,5 +12,9 @@
     "streaming_overlay": {
         "color": [0, 0, 255], 
         "thickness": 2    
-    }
+    },
+    "rtsp_intput": "",
+    "output_source": "",
+    "input_source": ""
+
 }
