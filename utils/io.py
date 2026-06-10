@@ -18,6 +18,7 @@ def get_config(path: str, section: str) -> Dict:
     Raises:
         Exception: check if the file exists
         Exception: check if the section exits
+        Exception: check if the json have valid format
 
     Returns:
         Dict: return the section of configuration
