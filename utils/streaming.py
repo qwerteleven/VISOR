@@ -106,7 +106,6 @@ def streaming_pipeline_vidgear(config: Dict, ml_model: object, input_source: str
 
 
     globals.init()
-    # change it by webRTC inputs of user cv2.setMouseCallback(config["VISOR_NAME"], click_and_crop)
 
     for _ in range(config["max_iteration"]):
         image = stream.read()
