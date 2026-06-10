@@ -86,6 +86,29 @@ To confirm the mobile WebRTC stream is being received, open a browser and naviga
 http://<host>:8889/movil_camera/
 ```
 
+### Config changes
+
+For enable the UPD direct connection with the web, you must provide a form to return the conection
+
+```
+webrtcAdditionalHosts: [public IP]
+webrtcICEServers2: 
+  - url: stun:stun.l.google.com:19302
+  - url: stun:stun1.l.google.com:19302
+
+```
+
+For input streamings you need define the /label in the configuration
+
+```
+
+paths:
+  movil_camera:
+    rtspRangeType: clock    # use wall clock timestamps, not buffered
+  movil_camera_2:
+    rtspRangeType: clock    # use wall clock timestamps, not buffered
+```
+
 ---
 
 ## 4. ML Backend
@@ -175,10 +198,10 @@ Start each inference service independently:
 
 ```bash
 # Object segmentation (SAM-3)
-python sam_api.py
+ uvicorn sam_api:app --host host --port port  --ssl-keyfile ../frontend/server.pem --ssl-certfile ../frontend/server.pem 
 
 # Vision-language description (PaliGemma)
-python gemma_api.py
+ uvicorn gemma_api:app --host host --port port  --ssl-keyfile ../frontend/server.pem --ssl-certfile ../frontend/server.pem 
 ```
 
 ---
