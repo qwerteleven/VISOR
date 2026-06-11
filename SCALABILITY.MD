@@ -185,6 +185,88 @@ As with VRAM, proactive notifications to the service responsible are sent at **7
 
 If no physical resources remain to provision a new VM, the user receives an **"overload capacity"** error and the service responsible is notified.
 
+
+## Hardware Selection
+
+> **Note (as of 2026):** Hardware recommendations reflect current market conditions and known performance characteristics. This section should be reviewed periodically, as technology shifts may alter the optimal configuration — always weigh the cost of code adaptation, pipeline re-optimization, and research time before committing to a hardware change.
+
+---
+
+### CPU
+
+The most common production combination as of 2026 is **AMD EPYC + NVIDIA GPU** (H100, V100, etc.). This pairing has proven reliable for high-throughput inference and training workloads, but it should not be treated as a permanent default. Any future hardware migration must account for:
+
+- Code adaptation costs (driver changes, compiler targets, library compatibility)
+- Re-validation of optimization pipelines (e.g., CUDA-specific kernels, memory access patterns)
+- Investigation and benchmarking time before committing at scale
+
+A relevant trend to monitor: consumer-tier CPUs increasingly combine **efficiency cores (E-cores)** and **performance cores (P-cores)** in hybrid architectures. If this design philosophy reaches server-grade silicon, workload scheduling will require careful attention. The recommended approach is to manage this via **QEMU/KVM virtualization**, which supports explicit vCPU pinning to physical cores. When doing so:
+
+- Identify which physical cores share an **L3 cache domain** before assigning them to VMs
+- Keep latency-sensitive workloads on cores that share cache to avoid inter-NUMA or cross-die penalties
+- Avoid splitting a cache group across VMs, as this introduces unnecessary memory latency that will degrade inference throughput
+
+---
+
+### GPU / Accelerators
+
+The current standard is NVIDIA GPUs for both ML inference and video encoding/decoding pipelines. An alternative worth evaluating as it matures is purpose-built compute silicon such as **TPUs (Tensor Processing Units)** or similar ML-specific accelerators.
+
+Before adopting any such alternative, the following capabilities must be explicitly replaced or re-implemented:
+
+- **Hardware video encode/decode** — currently handled by NVENC/NVDEC on NVIDIA GPUs; TPUs and most ML-only accelerators do not include this
+- **ML model compilation pipelines** — toolchains such as TensorRT are NVIDIA-specific; migrating requires porting to the target hardware's compiler stack (e.g., XLA for TPUs)
+- **Development and research cost** — budget for a full evaluation cycle including benchmarking, pipeline porting, and regression testing before any production rollout
+
+---
+
+### Storage (Disk I/O)
+
+The primary bottleneck in write-heavy workloads is **write I/O saturation**. To address this, servers should be designed with internal write acceleration strategies:
+
+- **Internal write cache** (battery-backed RAID controller cache or persistent memory tier) to absorb burst writes
+- **RAID-5** or equivalent parity grouping to balance redundancy with usable write throughput
+
+The required I/O velocity is not a fixed target — it must be **estimated from application usage inference** (request rates, model load patterns, checkpoint frequency, log volume, etc.) and validated under realistic load before hardware is finalized.
+
+For higher performance requirements, **NVMe SSDs** offer approximately 10× the sequential throughput of enterprise HDDs. The trade-offs are:
+
+| Factor | Impact |
+|---|---|
+| Cost | Significantly higher per TB |
+| Warranty | Often shorter duty-cycle ratings |
+| Write endurance | SSDs degrade with write volume (TBW rating); must be monitored and planned for replacement |
+
+Select the storage tier that matches the actual I/O profile — avoid over-provisioning NVMe where HDD+cache is sufficient.
+
+---
+
+### RAM
+
+RAM selection is one of the highest-impact and least flexible decisions in the stack. Key considerations:
+
+- **ECC (Error-Correcting Code)** memory is mandatory for server deployments — single-bit errors in model weights or activations are otherwise silent and can corrupt inference output
+- **Clock speed directly affects inference latency** for models that reside within a single GPU's VRAM, where the CPU-to-GPU memory pathway becomes the bottleneck during data loading and pipeline orchestration
+- Higher memory bandwidth (faster clock, wider channels) reduces stall time and produces measurable latency improvements in memory-bound inference workloads
+
+RAM is a known inference bottleneck: the faster the memory bus, the lower the delay. Prioritize bandwidth over capacity when the working set fits in VRAM; prioritize capacity when models must be partially offloaded to system RAM.
+
+---
+
+### Chassis and PCIe Topology
+
+When selecting server chassis and motherboards, the goal is to maximize the number of **full-bandwidth x16 PCIe slots** available simultaneously. Several constraints interact here:
+
+- **GPU form factor** — confirm the physical slot pitch supports the selected GPU width (1-slot, 2-slot, or half-size) across all populated slots without mechanical conflict
+- **Motherboard chipset** — many boards advertise 4–8 x16 slots, but the chipset may only support running a subset of them at full x16 electrical bandwidth concurrently; the remainder may downgrade to x8 or x4 under load. Verify the chipset's lane budget explicitly.
+- **CPU PCIe lane count** — each CPU provides a fixed number of PCIe lanes. In dual-CPU configurations, lane allocation between sockets and the inter-socket link (e.g., AMD Infinity Fabric) must be mapped carefully to ensure GPU slots connected to each socket receive full electrical x16 bandwidth
+- **Dual-CPU configurations** — a dual-socket board doubles available lanes in principle, but NUMA topology means GPUs connected to the remote CPU will have higher memory access latency when driven from the primary socket's workload; factor this into GPU-to-workload assignment
+
+Always validate the full PCIe topology against the motherboard's lane diagram before procurement — advertised slot counts are frequently optimistic.
+
+
+
+
 ### Caveats
 
 - GPU partitioning in KVM environments (via vGPU or PCIe passthrough) adds significant operational complexity.
