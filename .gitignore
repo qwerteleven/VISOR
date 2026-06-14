@@ -10,5 +10,5 @@ onnx__MatMul*
 rtsp-server/
 *.pem
 *.log
-
+*.mp4
 config.json
