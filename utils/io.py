@@ -28,7 +28,7 @@ def get_config(path: str, section: str) -> Dict:
         msg = f"config file not exists: {path}"
         logging.error(msg)
         print(msg)
-        raise Exception("msg")
+        raise Exception(msg)
     
     try:
         with open(path) as f:
@@ -50,7 +50,7 @@ def get_config(path: str, section: str) -> Dict:
         msg = f"section config not exists: {path}"
         logging.error(msg)
         print(msg)
-        raise Exception("msg")
+        raise Exception(msg)
 
     config = config[section]
 
@@ -77,7 +77,7 @@ def oldest_file_in_tree(root_folder: str, extension: str=".log") -> str:
         msg = f"folder not exists: {root_folder}"
         logging.error(msg)
         print(msg)
-        raise Exception("msg")
+        raise Exception(msg)
 
     return min(
         (os.path.join(dirname, filename)
@@ -110,7 +110,7 @@ def set_logger(LOG_PATH: str, service_name: str) -> None:
         msg = f"logs folder not exists: {LOG_PATH}"
         logging.error(msg)
         print(msg)
-        raise Exception("msg")
+        raise Exception(msg)
     
     n_files_in_logs = len([name for name in os.listdir('.') if os.path.isfile(name)])
     
@@ -123,7 +123,7 @@ def set_logger(LOG_PATH: str, service_name: str) -> None:
             msg = f"MAX_LOGS files reached, fail to remove the oldest: {LOG_PATH}"
             logging.error(msg)
             print(msg)
-            raise Exception("msg")
+            raise Exception(msg)
 
 
     LOG_FILE = f"{LOG_PATH}/{service_name}_{timestamp}.log"

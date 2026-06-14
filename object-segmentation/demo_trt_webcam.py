@@ -53,7 +53,7 @@ class sam3_model():
             msg = f"engine file not exists: {engine_path}"
             logging.error(msg)
             print(msg)
-            raise Exception("msg")
+            raise Exception(msg)
     
         self.engine_path = engine_path
         self.context = None
