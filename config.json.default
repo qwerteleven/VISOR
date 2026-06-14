@@ -1,9 +1,9 @@
 {
-    "certified": "server.pem",
-    "keyfile": "server.pem",
+    "certified": "",
+    "keyfile": "",
     "connection": {
         "host":  "",
-        "port": 0
+        "port": 
     },
     "logs": {
         "MAX_LOGS": 100,
@@ -13,8 +13,23 @@
         "color": [0, 0, 255], 
         "thickness": 2    
     },
-    "rtsp_intput": "",
-    "output_source": "",
-    "input_source": ""
+    "rtsp_intput": "http://localhost:8889/movil_camera/whip",
+    "output_source": "rtmp://localhost:1935/movil_camera_2",
+    "input_source": "rtsp://localhost:8554/movil_camera",
+
+    "services": [
+        { "route": "/api",          "target": "http://localhost:8000" },
+        { "route": "/ws",           "target": "http://localhost:8000" },
+        { "route": "/stream",       "target": "http://localhost:8000" },
+        { "route": "/whep",         "target": "http://localhost:8889" },
+        { "route": "/whip",         "target": "http://localhost:8889" },
+        { "route": "/movil_camera", "target": "http://localhost:8889" }
+    ],
+    "client": {
+        "fastapi_http": "https://domain:port",
+        "fastapi_ws":   "wss://domain:port",
+        "whip_url":     "https://domain:port/movil_camera/whip"
+    }
+    
 
 }
