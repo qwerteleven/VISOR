@@ -5,6 +5,52 @@
         "host":  "",
         "port": 
     },
+    "client": {
+        "fastapi_http": "https://domain:port",
+        "fastapi_ws":   "wss://domain:port",
+        "whip_url":     "https://domain:port/movil_camera/whip"
+    }
+    "proxy_config": {
+        "host": "",
+        "port": -1,
+        "ws": "websockets",
+        "http": "h11",
+        "loop": "asyncio"    
+    },
+
+
+    
+    "frontend_index_file" : "frontend/index.html",
+    "log_format": "%(levelname)s %(asctime)s %(processName)s %(message)s",
+    "sam_port": "8000",
+    "CORS_ALLOW": {
+        "allow_origins": ["*"],
+        "allow_methods": ["*"],
+        "allow_headers": ["*"]
+    },
+    "streaming_mediatype": "multipart/x-mixed-replace; boundary=frame",
+    "filter_headers": ["host", "content-length"],
+    "exclude_headers": ["transfer-encoding", "connection", "keep-alive"],
+    "streaming_timeout": 10,
+    "client_timeouts": {
+        "time": 30, 
+        "read": 10
+    },
+    "allow_methods": {
+        "proxy": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+    },
+    "websocket_connection": {
+        "open_timeout":5,
+        "ping_interval":20,
+        "ping_timeout":10
+    },
+    "endpoints": {
+        "root": "/",
+        "static": "/static",
+        "config": "/config",
+        "overlay":  "/overlay",
+        "stream": "/stream"
+    },
     "logs": {
         "MAX_LOGS": 100,
         "time_format": "%Y_%m_%d-%H_%M_%S"
@@ -16,7 +62,6 @@
     "rtsp_intput": "http://localhost:8889/movil_camera/whip",
     "output_source": "rtmp://localhost:1935/movil_camera_2",
     "input_source": "rtsp://localhost:8554/movil_camera",
-
     "services": [
         { "route": "/api",          "target": "http://localhost:8000" },
         { "route": "/ws",           "target": "http://localhost:8000" },
@@ -25,11 +70,4 @@
         { "route": "/whip",         "target": "http://localhost:8889" },
         { "route": "/movil_camera", "target": "http://localhost:8889" }
     ],
-    "client": {
-        "fastapi_http": "https://domain:port",
-        "fastapi_ws":   "wss://domain:port",
-        "whip_url":     "https://domain:port/movil_camera/whip"
-    }
-    
-
 }
