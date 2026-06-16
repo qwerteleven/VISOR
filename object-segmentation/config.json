@@ -72,6 +72,20 @@
         "-forced-idr": "1",   
         "-bf": "0"         
     },
-    "custom_ffmpeg": "../rtsp-server/ffmpeg.exe"
+    "custom_ffmpeg": "../rtsp-server/ffmpeg.exe",
+    "sam_api_timeouts": {
+        "connect_rtsp": 5,
+        "stale_connection": 3,
+        "read_frame": 0.2,
+        "disconnect_retry": 2,
+        "rtsp_retry": 5,
+        "frame_generator": 0.05  
+
+    },
+        "sam_streaming_quality": {
+            "format": "JPEG", 
+            "quality": 80,
+            "fps": 30
+    }
 
 }
