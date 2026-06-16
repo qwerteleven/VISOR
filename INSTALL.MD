@@ -109,6 +109,29 @@ paths:
     rtspRangeType: clock    # use wall clock timestamps, not buffered
 ```
 
+For decrease the timing between connections client services change
+
+```
+# Maximum time to gather STUN candidates.
+webrtcSTUNGatherTimeout: 3s
+# Time to wait for the WebRTC handshake to complete.
+webrtcHandshakeTimeout: 3s
+# Maximum time to gather tracks.
+webrtcTrackGatherTimeout: 500ms
+
+
+```
+
+For enable the api access, for change automatic the configuration
+
+```
+
+# Allow clients to control the server through the Control API.
+api: true
+
+```
+
+
 ---
 
 ## 4. ML Backend
