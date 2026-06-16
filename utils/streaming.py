@@ -58,7 +58,7 @@ def streaming_pipeline_OpenCV(config: Dict, ml_model: object, cam: object = None
             ml_model.update_attention_region(globals.user_ref_point, image.shape)
             output_image = ml_model(image)
         except Exception as e:
-            msg = "can not make inference with ml_model"
+            msg = f"can not make inference with ml_model, error: {e}"
             logging.error(msg)
             print(msg)
             print(traceback.format_exc())
@@ -120,7 +120,7 @@ def streaming_pipeline_vidgear(config: Dict, ml_model: object, input_source: str
             ml_model.update_attention_region(globals.user_ref_point, image.shape)
             output_image = ml_model(image)
         except Exception as e:
-            msg = "can not make inference with ml_model"
+            msg = f"can not make inference with ml_model, error: {e}"
             logging.error(msg)
             print(msg)
             print(traceback.format_exc())
@@ -129,7 +129,7 @@ def streaming_pipeline_vidgear(config: Dict, ml_model: object, input_source: str
         try:
             streamer.write(output_image)
         except Exception as e:
-            msg = f"can not write to the output_source: {output_source}"
+            msg = f"can not write to the output_source: {output_source}, error: {e}"
             print(msg)
             logging.error(msg)
             print(traceback.format_exc())
