@@ -33,7 +33,7 @@ app.add_middleware(
 )
 
 
-app.mount(config_cache["endpoints"]["static"], StaticFiles(directory="frontend"), name="static")
+app.mount(config_cache["endpoints"]["static"], StaticFiles(directory="../frontend"), name="static")
 
 
 @app.get(config_cache["endpoints"]["root"])
