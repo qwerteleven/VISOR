@@ -24,7 +24,7 @@ try:
     model = Sam3Model.from_pretrained("facebook/sam3").to(device)
     processor = Sam3Processor.from_pretrained("facebook/sam3")
 except Exception as e:
-    msg = "can not load model"
+    msg = f"can not load model, error: {e}"
     logging.error(msg)
     print(msg)
     print(traceback.format_exc())
@@ -108,7 +108,7 @@ try:
     print(msg)
     
 except Exception as e:
-    msg = "can not export ONNX model"
+    msg = f"can not export ONNX model, error: {e}"
     logging.error(msg)
     print(msg)
     print(traceback.format_exc())
