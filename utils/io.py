@@ -6,6 +6,36 @@ import os
 from typing import Dict
 import traceback
 
+
+def load_config(path: str = "config.json") -> Dict:
+    """
+    
+        Load all the general config
+
+    Returns:
+        Dict: _description_
+    """    
+
+    if not os.path.isfile(path):
+        msg = f"config file not exists: {path}"
+        logging.error(msg)
+        print(msg)
+        raise Exception(msg)
+    
+
+    with open("config.json", "r") as f:
+        try :
+            data = json.load(f)
+        except json.JSONDecodeError as e:
+            msg = f"invalid json format: {e}"
+            logging.error(msg)
+            print(msg)
+            print(traceback.format_exc())
+
+        return data
+    
+
+    
 def get_config(path: str, section: str) -> Dict:
     """
     
@@ -35,7 +65,7 @@ def get_config(path: str, section: str) -> Dict:
             try:
                 config = json.load(f)
             except json.JSONDecodeError as e:
-                msg = "invalid json format"
+                msg = f"invalid json format: {e}"
                 logging.error(msg)
                 print(msg)
                 print(traceback.format_exc())
@@ -112,7 +142,7 @@ def set_logger(LOG_PATH: str, service_name: str) -> None:
         print(msg)
         raise Exception(msg)
     
-    n_files_in_logs = len([name for name in os.listdir('.') if os.path.isfile(name)])
+    n_files_in_logs = len([name for name in os.listdir('../logs') if os.path.isfile(name)])
     
 
     if n_files_in_logs > config["MAX_LOGS"]:
@@ -127,7 +157,7 @@ def set_logger(LOG_PATH: str, service_name: str) -> None:
 
 
     LOG_FILE = f"{LOG_PATH}/{service_name}_{timestamp}.log"
-    logFormatter = logging.Formatter("%(levelname)s %(asctime)s %(processName)s %(message)s")
+    logFormatter = logging.Formatter(config["log_format"])
     fileHandler = logging.FileHandler("{0}".format(LOG_FILE))
     fileHandler.setFormatter(logFormatter)
     rootLogger = logging.getLogger()
