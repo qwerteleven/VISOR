@@ -5,8 +5,10 @@ import cv2
 import sys
 import os
 import threading
+import traceback
+import logging
 from contextlib import asynccontextmanager
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 import io
 import numpy as np
 from typing import List
@@ -20,63 +22,83 @@ sys.path.append(root_folder)
 from demo_trt_webcam import sam3_model
 from utils.io import get_config, set_logger
 
+set_logger("../logs", os.path.basename(sys.argv[0]))
+
 
 overlay_lock = asyncio.Lock()
 
-
+sam_quality = get_config("config.json", "sam_streaming_quality") 
+sam_timeout = get_config("config.json", "sam_api_timeouts") 
 config = get_config("config.json", "demo_trt_webcam") 
 overlay_config = get_config("../config.json", "streaming_overlay")
-output_config = get_config("config.json", "output_vidgear")
-input_config = get_config("config.json", "input_vidgear")
-output_source = get_config("../config.json", "output_source")
 input_source = get_config("../config.json", "input_source")
+streaming_mediatype = get_config("../config.json", "streaming_mediatype")
+endpoints = get_config("../config.json", "endpoints")
 ml_model = sam3_model(config["engine_file_path"], config, overlay_config)
 ml_model.load()
 
 
-
+last_frame_time = 0  
 latest_frame: np.ndarray | None = None
 frame_lock = threading.Lock()
 ref_points: List = []
 skip_next_touch_end: bool = False
 
-
 def rtsp_reader(rtsp_url: str) -> None:
     """
-        read frame by frame a RTSP streaming, if the streamign con not be connect try to reconect infinitly
-        THIS IS ONLY FOR TESTING, ALL FUNCTIONS MUST HAVE A FINAL ITERATION
+    
+        consume frame from source with opencv
 
     Args:
-        rtsp_url (str): path to rtsp streaming
+        rtsp_url (str): streaming source 
     """    
     global latest_frame
     while True:
         try:
+            print(f"Connecting to RTSP: {rtsp_url}")
             cap = cv2.VideoCapture(rtsp_url)
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            
             if not cap.isOpened():
-                time.sleep(5)
+                print("RTSP not available, retrying in 5s...")
+                time.sleep(sam_timeout["connect_rtsp"])
                 continue
 
+            last_frame_time = time.time()
+            
             while True:
                 ret, frame = cap.read()
                 if not ret:
-                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)  # reconnect / loop
+                    if time.time() - last_frame_time > sam_timeout["stale_connection"]:
+                        print("RTSP stale — reconnecting...")
+                        break
+                    time.sleep(sam_timeout["read_frame"])
                     continue
+
+                last_frame_time = time.time()
                 with frame_lock:
                     latest_frame = frame.copy()
 
+            cap.release() 
+            print(f"RTSP disconnected, reconnecting in {sam_timeout['disconnect_retry']}s...")
+            time.sleep(sam_timeout['disconnect_retry'])
+
         except Exception as e:
-            print("can not read the rstp streaming, retrying in 5 seconds")
-          
+            msg = f"RTSP error: {e}, retrying in {sam_timeout['rtsp_retry']}s..."
+            logging.error(msg)
+            print(msg)
+            print(traceback.format_exc())
+            time.sleep(sam_timeout['rtsp_retry'])
+
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> None:
+async def lifespan(app: FastAPI):
     """
     
-        thead for reading the streaming
+        thread for reading the streaming
 
     Args:
-        app (FastAPI): API obaject
+        app (FastAPI): API object
     """  
     rtsp_url = input_source
     t = threading.Thread(target=rtsp_reader, args=(rtsp_url,), daemon=True)
@@ -96,36 +118,34 @@ def apply_overlay(frame: np.ndarray) -> bytes:
     Returns:
         bytes: buffer with image + overlay
     """    
-    if not state["show"]:
-        img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-    else:
-        global ref_points
-        
-        ml_model.update_attention_region(ref_points, frame.shape)
-        output_image = ml_model(frame)
 
-        img = Image.fromarray(cv2.cvtColor(output_image, cv2.COLOR_BGR2RGB))
-        draw = ImageDraw.Draw(img)
+    global ref_points
+    
+    ml_model.update_attention_region(ref_points, frame.shape)
+    output_image = ml_model(frame)
+
+    img = Image.fromarray(cv2.cvtColor(output_image, cv2.COLOR_BGR2RGB))
+    draw = ImageDraw.Draw(img)
 
     buf = io.BytesIO()
-    img.save(buf, format="JPEG", quality=80)
+    img.save(buf, format=sam_quality["format"], quality=sam_quality["quality"])
     return buf.getvalue()
 
 
 async def frame_generator():
     """
-        Generates the frames + overlay for HTTPS web, 
-
+        Generates the frames + overlay for HTTPS web
 
     Yields:
         bytes: streaming frames sended to web
     """    
+
     while True:
         with frame_lock:
             frame = latest_frame.copy() if latest_frame is not None else None
 
         if frame is None:
-            await asyncio.sleep(0.05)
+            await asyncio.sleep(sam_timeout["frame_generator"])
             continue
 
         jpeg = apply_overlay(frame)
@@ -133,10 +153,11 @@ async def frame_generator():
             b"--frame\r\n"
             b"Content-Type: image/jpeg\r\n\r\n" + jpeg + b"\r\n"
         )
-        await asyncio.sleep(1 / 30)  # ~30 fps
+        await asyncio.sleep(1 / sam_quality["fps"])
 
-@app.get("/stream")
-async def stream() -> fastapi.responses.StreamingResponse:
+
+@app.get(endpoints["stream"])
+async def stream() -> StreamingResponse:
     """
     
         Gives to HTTPS web the streaming channel output
@@ -146,11 +167,11 @@ async def stream() -> fastapi.responses.StreamingResponse:
     """    
     return StreamingResponse(
         frame_generator(),
-        media_type="multipart/x-mixed-replace; boundary=frame",
+        media_type=streaming_mediatype,
     )
 
 
-@app.websocket("/overlay")
+@app.websocket(endpoints["overlay"])
 async def overlay_ws(ws: WebSocket):
     """
     
@@ -182,6 +203,10 @@ async def overlay_ws(ws: WebSocket):
                     ref_points += [(msg["x"], msg["y"])]
 
             await ws.send_text(json.dumps({"ok": True}))
+
     except WebSocketDisconnect:
-        pass
+        msg = f"Web Socket Disconnect"
+        logging.error(msg)
+        print(msg)
+    
 
