@@ -9,7 +9,7 @@
         "fastapi_http": "https://domain:port",
         "fastapi_ws":   "wss://domain:port",
         "whip_url":     "https://domain:port/movil_camera/whip"
-    }
+    },
     "proxy_config": {
         "host": "",
         "port": -1,
@@ -69,5 +69,5 @@
         { "route": "/whep",         "target": "http://localhost:8889" },
         { "route": "/whip",         "target": "http://localhost:8889" },
         { "route": "/movil_camera", "target": "http://localhost:8889" }
-    ],
+    ]
 }
