@@ -1,4 +1,5 @@
 import cv2
+import sys
 from typing import Dict
 import logging
 import traceback
@@ -30,8 +31,8 @@ def streaming_pipeline_OpenCV(config: Dict, ml_model: object, cam: object = None
 
     globals.init()
     globals.VISOR_NAME = config["VISOR_NAME"]
-    if cam is None:
 
+    if cam is None:
         try:
             cam = cv2.VideoCapture(0)
         except SystemError:
@@ -44,9 +45,11 @@ def streaming_pipeline_OpenCV(config: Dict, ml_model: object, cam: object = None
     cv2.namedWindow(config["VISOR_NAME"])
     cv2.setMouseCallback(config["VISOR_NAME"], click_and_crop)
 
+    assert config["max_iteration"] > 0
+    assert config["max_iteration"] < sys.maxsize 
+
     for _ in range(config["max_iteration"]):
         ret, image = cam.read()
-
 
         if not ret:
             msg = "failed to grab frame"
@@ -104,6 +107,9 @@ def streaming_pipeline_vidgear(config: Dict, ml_model: object, input_source: str
         custom_ffmpeg = custom_ffmpeg
     )  
 
+
+    assert config["max_iteration"] > 0
+    assert config["max_iteration"] < sys.maxsize 
 
     globals.init()
 
