@@ -21,13 +21,13 @@ def timer(func):
         assert duration >= 0
         assert total >= 0
         assert n_iteration >= 0
-        assert duration < sys.float_info.max
+        assert duration < sys.float_info.max - 1
 
         total += duration
         n_iteration += 1
 
         assert n_iteration <= 100
-        assert total < sys.float_info.max
+        assert total < sys.float_info.max - 1
 
         if n_iteration % 100 == 0:
             msg = f"Mean process time: {total /  100}, by 100 iterations"

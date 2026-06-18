@@ -46,7 +46,7 @@ def streaming_pipeline_OpenCV(config: Dict, ml_model: object, cam: object = None
     cv2.setMouseCallback(config["VISOR_NAME"], click_and_crop)
 
     assert config["max_iteration"] > 0
-    assert config["max_iteration"] < sys.maxsize 
+    assert config["max_iteration"] < sys.maxsize - 1
 
     for _ in range(config["max_iteration"]):
         ret, image = cam.read()
@@ -109,7 +109,7 @@ def streaming_pipeline_vidgear(config: Dict, ml_model: object, input_source: str
 
 
     assert config["max_iteration"] > 0
-    assert config["max_iteration"] < sys.maxsize 
+    assert config["max_iteration"] < sys.maxsize - 1
 
     globals.init()
 

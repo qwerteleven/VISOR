@@ -1,4 +1,5 @@
 import json
+import sys
 import logging
 import datetime as dt
 import time
@@ -13,7 +14,7 @@ def load_config(path: str = "config.json") -> Dict:
         Load all the general config
 
     Returns:
-        Dict: _description_
+        Dict: load config
     """    
 
     if not os.path.isfile(path):
@@ -135,6 +136,9 @@ def set_logger(LOG_PATH: str, service_name: str) -> None:
 
     timestamp = dt.datetime.fromtimestamp(time.time()).strftime(config["time_format"])
 
+    assert timestamp > 0
+    assert timestamp < sys.float_info.max - 1
+ 
 
     if not os.path.isdir(LOG_PATH):
         msg = f"logs folder not exists: {LOG_PATH}"
