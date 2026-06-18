@@ -1,4 +1,5 @@
 import time
+import sys
 import logging
 
 def timer(func):
@@ -15,8 +16,18 @@ def timer(func):
         start = time.time()
         result = func(*args, **kwargs)
         duration = time.time() - start
+
+        assert func is not None
+        assert duration >= 0
+        assert total >= 0
+        assert n_iteration >= 0
+        assert duration < sys.float_info.max
+
         total += duration
         n_iteration += 1
+
+        assert n_iteration <= 100
+        assert total < sys.float_info.max
 
         if n_iteration % 100 == 0:
             msg = f"Mean process time: {total /  100}, by 100 iterations"
