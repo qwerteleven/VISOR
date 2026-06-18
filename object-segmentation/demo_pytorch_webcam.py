@@ -68,6 +68,9 @@ class sam3_model():
         Args:
             user_ref_point (List): list of points touched by the user
         """        
+
+        assert len(user_ref_point) <= 2
+
         self.user_ref_point = user_ref_point
 
         if len(self.user_ref_point) == 2:
