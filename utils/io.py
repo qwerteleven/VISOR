@@ -23,7 +23,7 @@ def load_config(path: str = "config.json") -> Dict:
         raise Exception(msg)
     
 
-    with open("config.json", "r") as f:
+    with open(path, "r") as f:
         try :
             data = json.load(f)
         except json.JSONDecodeError as e:
@@ -142,7 +142,7 @@ def set_logger(LOG_PATH: str, service_name: str) -> None:
         print(msg)
         raise Exception(msg)
     
-    n_files_in_logs = len([name for name in os.listdir('../logs') if os.path.isfile(name)])
+    n_files_in_logs = len([name for name in os.listdir(LOG_PATH) if os.path.isfile(f"{LOG_PATH}/{name}")])
     
 
     if n_files_in_logs > config["MAX_LOGS"]:
