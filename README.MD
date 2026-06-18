@@ -10,6 +10,15 @@ Mobile Browser ──WebRTC/WebSocket──▶ MediaMTX ──▶ Python Backend
 
 ---
 
+## Disclaimer
+
+**The codebase, develop scope, is the describe in README.MD file, the other files are strategic thinking, future vision of the project, not the real scope**
+
+
+
+
+---
+
 ## Stack
 
 | Layer | Technology |
