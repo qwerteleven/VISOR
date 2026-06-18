@@ -134,11 +134,12 @@ def set_logger(LOG_PATH: str, service_name: str) -> None:
 
     config = get_config("../config.json", "logs") 
 
-    timestamp = dt.datetime.fromtimestamp(time.time()).strftime(config["time_format"])
+    timestamp = dt.datetime.fromtimestamp(time.time())
 
     assert timestamp > 0
     assert timestamp < sys.float_info.max - 1
- 
+
+    date = timestamp.strftime(config["time_format"])
 
     if not os.path.isdir(LOG_PATH):
         msg = f"logs folder not exists: {LOG_PATH}"
@@ -160,7 +161,7 @@ def set_logger(LOG_PATH: str, service_name: str) -> None:
             raise Exception(msg)
 
 
-    LOG_FILE = f"{LOG_PATH}/{service_name}_{timestamp}.log"
+    LOG_FILE = f"{LOG_PATH}/{service_name}_{date}.log"
     logFormatter = logging.Formatter(config["log_format"])
     fileHandler = logging.FileHandler("{0}".format(LOG_FILE))
     fileHandler.setFormatter(logFormatter)
