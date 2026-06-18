@@ -117,7 +117,10 @@ class sam3_model():
 
         Args:
             user_ref_point (List): list of points touched by the user
-        """        
+        """     
+
+        assert len(user_ref_point) <= 2
+
         self.user_ref_point = user_ref_point
 
         if len(self.user_ref_point) == 2:
@@ -139,7 +142,9 @@ class sam3_model():
 
         Returns:
             np.array: image overlay with the inference result
-        """       
+        """  
+
+        assert image is not None     
 
         if len(self.user_ref_point) == 2:
             image = draw_user_rectangle(image, self.overlay_config, self.user_ref_point)
