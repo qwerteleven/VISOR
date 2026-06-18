@@ -17,7 +17,10 @@ def overlay_masks(image: np.array, masks: torch.Tensor) -> np.array:
 
     Returns:
         np.array: image overlaped with masks
-    """    
+    """  
+
+    assert masks.shape == (1, 1008, 1008, 3)
+
     image = image.convert("RGBA")
     masks = 255 * masks.cpu().numpy().astype(np.uint8)
     
@@ -34,6 +37,7 @@ def overlay_masks(image: np.array, masks: torch.Tensor) -> np.array:
         alpha = mask.point(lambda v: int(v * 0.5))
         overlay.putalpha(alpha)
         image = Image.alpha_composite(image, overlay)
+
     return image
 
 
@@ -49,6 +53,8 @@ def draw_user_rectangle(image: np.array, config: Dict, user_ref_point: List) -> 
     Returns:
         np.array: blended image with box of interest
     """    
+
+    assert len(user_ref_point) == 2
 
     image_shape = image.shape
 
