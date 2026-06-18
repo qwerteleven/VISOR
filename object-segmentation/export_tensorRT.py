@@ -45,7 +45,7 @@ if not success:
 
 
 config_build = builder.create_builder_config()
-config_build.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 4 << 30)  # 4 GiB
+config_build.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, config["memory_size_gb"] << 30)
 
 if builder.platform_has_fast_fp16:
     config_build.set_flag(trt.BuilderFlag.FP16)

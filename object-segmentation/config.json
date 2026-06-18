@@ -1,7 +1,8 @@
 {
     "export_tensorRT": {
         "model_path": "onnx_weights/sam3_dynamic.onnx",
-        "output_name": "tensorRT_weights/sam-3.engine"
+        "output_name": "tensorRT_weights/sam-3.engine",
+        "memory_size_gb": 4
 
     },
     "onnx_export": {
