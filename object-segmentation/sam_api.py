@@ -90,6 +90,16 @@ def rtsp_reader(rtsp_url: str) -> None:
             print(traceback.format_exc())
             time.sleep(sam_timeout['rtsp_retry'])
 
+        finally:
+
+            try:
+                cap.release() 
+            except Exception as e:
+                msg = f"can not release capture, error: {e}"
+                logging.error(msg)
+                print(msg)
+                print(traceback.format_exc())
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -128,7 +138,15 @@ def apply_overlay(frame: np.ndarray) -> bytes:
     draw = ImageDraw.Draw(img)
 
     buf = io.BytesIO()
-    img.save(buf, format=sam_quality["format"], quality=sam_quality["quality"])
+
+    try:
+        img.save(buf, format=sam_quality["format"], quality=sam_quality["quality"])
+    except Exception as e:
+        msg = f"can not save image in memory, error: {e}"
+        logging.error(msg)
+        print(msg)
+        print(traceback.format_exc())
+
     return buf.getvalue()
 
 
@@ -209,4 +227,8 @@ async def overlay_ws(ws: WebSocket):
         logging.error(msg)
         print(msg)
     
-
+    except Exception as e:
+        msg = f"Unexpected exception, sam_api, error: {e}"
+        logging.error(msg)
+        print(msg)
+        print(traceback.format_exc())
