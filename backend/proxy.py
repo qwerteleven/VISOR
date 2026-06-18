@@ -44,9 +44,13 @@ async def root() -> FileResponse:
 
     Returns:
         FileResponse: index.html of the  web
-    """    
+    """   
 
-    return FileResponse(config_cache["frontend_index_file"])
+    response =  FileResponse(config_cache["frontend_index_file"])
+
+    assert response is not None
+
+    return response
 
 
 @app.get(config_cache["endpoints"]["config"])
@@ -78,6 +82,11 @@ async def _client_to_backend(websocket: WebSocket, backend: websockets):
         websocket WebSocket: channel input
         backend websockets.connect: channel output
     """    
+
+    assert websocket is not None
+    assert backend is not None
+
+
     try:
         while True:
             try:
@@ -106,6 +115,9 @@ async def _backend_to_client(websocket: WebSocket, backend: websockets):
         backend websockets.connect: channel input
     """   
 
+    assert websocket is not None
+    assert backend is not None
+
     try:
         async for message in backend:
             try:
@@ -133,6 +145,8 @@ async def websocket_proxy(websocket: WebSocket):
     Args:
         websocket (WebSocket): websocket object
     """   
+
+    assert websocket is not None
 
     await websocket.accept()
 
@@ -222,6 +236,8 @@ async def proxy(request: Request, path: str):
     Returns:
         Response: respose of server to client
     """  
+
+    assert request is not None
 
     full_path = f"/{path}"
     target, route = get_target(full_path)
