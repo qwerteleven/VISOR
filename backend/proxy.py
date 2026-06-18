@@ -239,7 +239,7 @@ async def proxy(request: Request, path: str):
         if route == config_cache["endpoints"]["stream"]:
             timeout = httpx.Timeout(config_cache["streaming_timeout"], read = None)
             return StreamingResponse(
-                _stream_generator(request),
+                _stream_generator(request, timeout, url, headers),
                 media_type=config_cache["streaming_mediatype"],
             )
     
