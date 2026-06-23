@@ -1,0 +1,30 @@
+{
+    "export_tensorRT": {
+        "model_path": "onnx_weights/gemma_kv_cache.onnx",
+        "output_name": "tensorRT_weights/gemma_kv_cache.engine",
+        "memory_size_gb": 20
+
+    },    
+    "export_vision_tensorRT": {
+        "model_path": "onnx_weights/gemma_vision_kv_cache_split_sequence.onnx",
+        "output_name": "tensorRT_weights/gemma_vision_kv_cache.engine",
+        "memory_size_gb": 20
+
+    },
+    "onnx_export_text": {
+        "MAX_BATCH_SIZE": 1,
+        "MAX_CACHE_LEN": 512,
+        "PREFILL_LEN": 16,
+        "model_id": "google/gemma-4-E4B-it",
+        "seq_len_max": 512,
+        "attn_len_max": 511,
+        "output_path": "onnx_weights/gemma_kv_cache.onnx"
+    },
+
+    "demo_trt": {
+        "max_iteration": 20000,
+        "outputs_shapes": [[1, 296, 262144], [-1,2560]],
+        "prompt": "object inside box",
+        "engine_file_path": "tensorRT_weights/gemma.engine"
+    }
+}
