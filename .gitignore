@@ -12,3 +12,6 @@ rtsp-server/
 *.log
 *.mp4
 config.json
+*.onnx_data
+*.onnx
+*.data
