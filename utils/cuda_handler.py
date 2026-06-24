@@ -20,6 +20,8 @@ import os
 import ctypes
 from typing import Optional, List
 
+import ctypes
+import ml_dtypes
 import numpy as np
 import tensorrt as trt
 from cuda import cuda, cudart
@@ -30,6 +32,14 @@ except NameError:
     FileNotFoundError = IOError
 
 EXPLICIT_BATCH = 1 << (int)(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH)
+
+
+_RAW_CTYPE_BY_ITEMSIZE = {
+    1: ctypes.c_uint8,
+    2: ctypes.c_uint16,
+    4: ctypes.c_uint32,
+    8: ctypes.c_uint64,
+}
 
 def check_cuda_err(err):
     if isinstance(err, cuda.CUresult):
@@ -138,14 +148,25 @@ def locate_files(data_paths, filenames, err_msg=""):
 class HostDeviceMem:
     """Pair of host and device memory, where the host memory is wrapped in a numpy array"""
     def __init__(self, size: int, dtype: np.dtype):
+        dtype = np.dtype(dtype)
         nbytes = size * dtype.itemsize
         host_mem = cuda_call(cudart.cudaMallocHost(nbytes))
-        pointer_type = ctypes.POINTER(np.ctypeslib.as_ctypes_type(dtype))
 
-        self._host = np.ctypeslib.as_array(ctypes.cast(host_mem, pointer_type), (size,))
+        try:
+            pointer_type = ctypes.POINTER(np.ctypeslib.as_ctypes_type(dtype))
+            self._host = np.ctypeslib.as_array(ctypes.cast(host_mem, pointer_type), (size,))
+        except NotImplementedError:
+            # dtype has no ctypes equivalent (e.g. ml_dtypes.bfloat16) — build the view
+            # using a same-itemsize raw integer type, then reinterpret (zero-copy) as
+            # the real dtype so values are read/written with correct semantics.
+            raw_ctype = _RAW_CTYPE_BY_ITEMSIZE[dtype.itemsize]
+            pointer_type = ctypes.POINTER(raw_ctype)
+            raw_array = np.ctypeslib.as_array(ctypes.cast(host_mem, pointer_type), (size,))
+            self._host = raw_array.view(dtype)
+
         self._device = cuda_call(cudart.cudaMalloc(nbytes))
         self._nbytes = nbytes
-
+        
     @property
     def host(self) -> np.ndarray:
         return self._host
@@ -177,12 +198,40 @@ class HostDeviceMem:
         cuda_call(cudart.cudaFreeHost(self.host.ctypes.data))
 
 
+def _trt_dtype_to_np(trt_dtype: trt.DataType) -> np.dtype:
+    """
+    Map a TensorRT DataType to a numpy-compatible dtype.
+    Falls back to ml_dtypes for types numpy has no native representation for.
+    """
+    # types trt.nptype() already handles correctly
+    try:
+        return np.dtype(trt.nptype(trt_dtype))
+    except TypeError:
+        pass
+
+    # explicit fallback table for types with no native numpy dtype
+    fallback = {
+        trt.DataType.BF16: ml_dtypes.bfloat16,
+    }
+    # newer TensorRT versions may also expose FP8 variants
+    for attr_name in ("FP8", "E4M3", "E5M2"):
+        fp8_dtype = getattr(trt.DataType, attr_name, None)
+        if fp8_dtype is not None and trt_dtype == fp8_dtype:
+            fallback[trt_dtype] = ml_dtypes.float8_e4m3 if "E4M3" in attr_name else ml_dtypes.float8_e5m2
+
+    if trt_dtype in fallback:
+        return np.dtype(fallback[trt_dtype])
+
+    raise TypeError(f"No numpy/ml_dtypes mapping available for TensorRT dtype: {trt_dtype}")
+
+
 # Allocates all buffers required for an engine, i.e. host/device inputs/outputs.
 # If engine uses dynamic shapes, specify a profile to find the maximum input & output size.
 def allocate_buffers(
     engine: trt.ICudaEngine,
     profile_idx: Optional[int] = None,
-    stream: Optional[int] = None,  # pass existing stream to reuse
+    stream: Optional[int] = None,
+    context = None
 ) -> tuple[list, list, list, int]:
     inputs, outputs, bindings = [], [], []
 
@@ -200,6 +249,9 @@ def allocate_buffers(
             else engine.get_tensor_shape(name)
         )
 
+        if context is not None: 
+            shape = context.get_tensor_shape(name)
+
         if any(s < 0 for s in shape):
             raise ValueError(
                 f"Tensor '{name}' has a dynamic dimension but no profile_idx was given. "
@@ -207,7 +259,8 @@ def allocate_buffers(
             )
 
         size = trt.volume(shape) * implicit_batch_mult
-        dtype = np.dtype(trt.nptype(engine.get_tensor_dtype(name)))
+        # dtype = np.dtype(trt.nptype(engine.get_tensor_dtype(name)))
+        dtype = _trt_dtype_to_np(engine.get_tensor_dtype(name))
         mem = HostDeviceMem(size, dtype)  # uses cudaMallocHost internally
 
         bindings.append(int(mem.device))
@@ -260,3 +313,42 @@ def do_inference(context, engine, bindings, inputs, outputs, stream):
     for i in range(num_io):
         context.set_tensor_address(engine.get_tensor_name(i), bindings[i])
     return _do_inference_base(inputs, outputs, stream, execute_async_func)
+
+
+def get_input_output(engine):
+
+    input_name_to_idx = {}
+    output_name_to_idx = {}
+    in_i, out_i = 0, 0
+    for i in range(engine.num_io_tensors):
+        name = engine.get_tensor_name(i)
+        if engine.get_tensor_mode(name) == trt.TensorIOMode.INPUT:
+            input_name_to_idx[name] = in_i
+            in_i += 1
+        else:
+            output_name_to_idx[name] = out_i
+            out_i += 1
+
+    return input_name_to_idx, output_name_to_idx
+
+
+def to_host_bytes(z: np.array) -> np.array:
+    """
+    
+        Convert any numpy/ml_dtypes array to a uint16/uint8 view
+        safe for np.copyto into a pinned host buffer
+
+    Args:
+        z (np.array): cache matrix
+
+    Returns:
+        np.array: flat array cast  ml_dtypes.bfloat16 to np.uint16
+    """ 
+
+    if z.dtype == ml_dtypes.bfloat16:
+        return z.view(np.uint16).ravel()
+    
+    return z.ravel()
+
+
+
