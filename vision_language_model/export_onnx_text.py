@@ -57,7 +57,7 @@ def get_owning_layer_indices(model: AutoModelForCausalLM) -> List:
         model (AutoModelForCausalLM): internal text model 
 
     Returns:
-        _type_: the list of layer indices that actually own/store cache
+        List: the list of layer indices that actually own/store cache
     """    
 
     try:
@@ -65,14 +65,6 @@ def get_owning_layer_indices(model: AutoModelForCausalLM) -> List:
     except Exception as e:
         
         msg = f"can not access to language layers, error: {e}"
-        logging.error(msg)
-        print(msg)
-
-    try:
-        layer.self_attn.is_kv_shared_layer
-    except Exception as e:
-        
-        msg = f"can not access to language self_attn is_kv_shared_layer, error: {e}"
         logging.error(msg)
         print(msg)
 
@@ -346,19 +338,18 @@ if __name__ == "__main__":
 
     model = AutoModelForCausalLM.from_pretrained(model_id, dtype=torch.bfloat16).eval()
 
-    MAX_BATCH_SIZE: int = config["MAX_BATCH_SIZE"]
-    MAX_CACHE_LEN: int  = config["MAX_CACHE_LEN"] 
-    PREFILL_LEN: int    = config["PREFILL_LEN"]
+    MAX_BATCH_SIZE: int    = config["MAX_BATCH_SIZE"]
+    PREFILL_LEN: int       = config["PREFILL_LEN"]
+    PREFILL_LEN_TRACE: int = config["PREFILL_LEN_TRACE"]
 
     assert MAX_BATCH_SIZE > 0
-    assert MAX_CACHE_LEN > 0
-    assert PREFILL_LEN > 0
+    assert PREFILL_LEN > 2
+    assert 2 < PREFILL_LEN_TRACE < PREFILL_LEN
 
-
-    wrapper = Gemma4_text_wrapper(model, MAX_BATCH_SIZE, MAX_CACHE_LEN).eval()
+    wrapper = Gemma4_text_wrapper(model, MAX_BATCH_SIZE, PREFILL_LEN).eval()
 
     input_ids, attention_mask, cache_position, flat_cache_in = build_dummy_inputs(
-        model, wrapper, MAX_BATCH_SIZE, PREFILL_LEN, model.device
+        model, wrapper, MAX_BATCH_SIZE, PREFILL_LEN_TRACE, model.device
     )
 
     print(f"owning layer indices ({len(wrapper.owning_indices)}): {wrapper.owning_indices}")
@@ -404,8 +395,8 @@ if __name__ == "__main__":
 
     print("Try complete export")
 
-    seq_len_dim  = Dim("seq_len",  min=1, max=config["seq_len_max"])
-    attn_len_dim = Dim("attn_len", min=1, max=config["attn_len_max"])
+    seq_len_dim  = Dim("seq_len",  min=2, max=PREFILL_LEN)
+    attn_len_dim = Dim("attn_len", min=2, max=PREFILL_LEN)
 
     dynamic_shapes = {
         "input_ids":      {1: seq_len_dim},
