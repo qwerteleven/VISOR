@@ -136,8 +136,8 @@ def set_logger(LOG_PATH: str, service_name: str) -> None:
 
     timestamp = dt.datetime.fromtimestamp(time.time())
 
-    assert timestamp > 0
-    assert timestamp < sys.float_info.max - 1
+    assert timestamp.timestamp() > 0
+    assert timestamp.timestamp() < sys.float_info.max - 1
 
     date = timestamp.strftime(config["time_format"])
 
