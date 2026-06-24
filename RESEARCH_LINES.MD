@@ -41,11 +41,11 @@ against alternative options for description generation.
 
 **Two distinct risks to track separately:**
 
-> ⚠️ **Risk A — Model obsolescence:** The VLM landscape evolves fast enough that Gemma4 may be
+>  **Risk A — Model obsolescence:** The VLM landscape evolves fast enough that Gemma4 may be
 > overtaken by superior alternatives. Benchmarking must be an ongoing activity, not a one-time
 > evaluation.
 
-> ⚠️ **Risk B — Upper layer lock-in:** If the layer built on top of Gemma4 grows too large or
+>  **Risk B — Upper layer lock-in:** If the layer built on top of Gemma4 grows too large or
 > too tightly coupled, migrating to a better model becomes prohibitively costly. Architectural
 > decoupling from the underlying VLM must be a first-class design constraint.
 
@@ -80,7 +80,7 @@ quality.
 - The intermediate embedding translator adds an additional architectural dependency
 - The speed of VLM advancement risks keeping this solution permanently out of production
 
-> ⚠️ **Status: Open and conditional.** This line must be continuously evaluated against the pace
+> **Status: Open and conditional.** This line must be continuously evaluated against the pace
 > of VLM development. It should be closed only if its progress falls out of timing alignment with
 > the broader research — i.e. if VLM evolution makes it obsolete before it reaches production
 > readiness.
