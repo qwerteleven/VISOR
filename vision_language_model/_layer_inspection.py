@@ -3,6 +3,10 @@ from transformers import AutoModelForCausalLM
 from transformers import AutoModelForMultimodalLM  
 from typing import List
 import logging
+import onnx
+import numpy as np
+from collections import defaultdict
+
 
 
 def get_owning_layer_indices(model: AutoModelForCausalLM) -> List:
@@ -99,4 +103,142 @@ def patch_clamp_limit(model: AutoModelForMultimodalLM) -> AutoModelForMultimodal
     print(f"patched {patched_count} clipped-linear modules (vision + audio + any others)")
 
     return model
+
+
+def _get_const_value(const_node):
+    for a in const_node.attribute:
+
+        if a.name == "value":
+            return onnx.numpy_helper.to_array(a.t)
+        
+        if a.name == "value_ints":
+            return np.array(list(a.ints), dtype=np.int64)
+        
+        if a.name == "value_int":
+            return np.array([a.i], dtype=np.int64)
+        
+    return None
+
+
+def _topo_sort(graph):
+    available = set(i.name for i in graph.input) | set(i.name for i in graph.initializer)
+    sorted_nodes, remaining = [], list(graph.node)
+
+    while remaining:
+        progressed = False
+        still = []
+
+        for n in remaining:
+            if all(inp == "" or inp in available for inp in n.input):
+                sorted_nodes.append(n)
+                available.update(n.output)
+                progressed = True
+            else:
+                still.append(n)
+
+        if not progressed:
+            raise RuntimeError(
+                f"stuck: {
+                    [
+                    (n.name, [i for i in n.input if i not in available]) 
+                    for n in still[:5]
+                    ]
+                }"
+            )
+        
+        remaining = still
+
+    del graph.node[:]
+    graph.node.extend(sorted_nodes)
+
+    return graph
+
+
+def patch_reduce(onnx_path):
+
+    m = onnx.load(onnx_path, load_external_data=True)
+    graph = m.graph
+
+    output_to_node = {}
+    for n in graph.node:
+        for o in n.output:
+            output_to_node[o] = n
+
+    consumer_count = defaultdict(int)
+    for n in graph.node:
+        for inp in n.input:
+            if inp:
+                consumer_count[inp] += 1
+
+    to_delete = set()
+    patched = 0
+
+    for node in list(graph.node):
+        if node.op_type != "Reshape":
+            continue
+
+        if node.input[0] not in output_to_node or node.input[1] not in output_to_node:
+            continue
+
+        data_producer = output_to_node[node.input[0]]
+        shape_producer = output_to_node[node.input[1]]
+
+        if data_producer.op_type != "Constant" or shape_producer.op_type != "Constant":
+            continue
+
+        scalar_val = _get_const_value(data_producer)
+        new_shape = _get_const_value(shape_producer)
+
+        if scalar_val is None or new_shape is None:
+            continue
+
+        if scalar_val.dtype not in (np.int32, np.int64):
+            continue
+
+        folded_array = scalar_val.astype(np.int64).reshape(new_shape)
+        folded_name = f"{node.output[0]}_folded"
+
+        new_const = onnx.helper.make_node(
+            "Constant",
+            inputs = [],
+            outputs = [folded_name],
+            name = f"{node.name}_folded_const",
+            value = onnx.numpy_helper.from_array(folded_array, name=folded_name),
+        )
+
+        old_output = node.output[0]
+        for consumer in graph.node:
+            for i, inp in enumerate(consumer.input):
+                if inp == old_output:
+                    consumer.input[i] = folded_name
+
+        graph.node.append(new_const)
+        to_delete.add(node.name)  
+        
+
+        consumer_count[node.input[0]] -= 1
+        consumer_count[node.input[1]] -= 1
+
+        if consumer_count[node.input[0]] == 0:
+            to_delete.add(data_producer.name)
+
+        if consumer_count[node.input[1]] == 0:
+            to_delete.add(shape_producer.name)
+
+        patched += 1
+
+    print(f"folded {patched} constant-reshape patterns")
+
+    new_nodes = [n for n in graph.node if n.name not in to_delete]
+    del graph.node[:]
+    graph.node.extend(new_nodes)
+        
+    graph = _topo_sort(graph)
+
+    return m
+
+
+
+
+
 
