@@ -4,6 +4,7 @@ import logging
 import datetime as dt
 import time
 import os
+import onnx
 from typing import Dict
 import traceback
 
@@ -168,5 +169,55 @@ def set_logger(LOG_PATH: str, service_name: str) -> None:
     rootLogger = logging.getLogger()
     rootLogger.addHandler(fileHandler)
     rootLogger.setLevel(logging.INFO)
+
+
+def save_onnx(output_file: str, m):
+    """
+    
+        save ONNX model, if exist is overwritte
+
+    Args:
+        output_file (str): path to save
+        m (ONNX): model to save
+    """    
+
+
+    if os.path.isfile(output_file):
+        os.remove(output_file)
+
+    output_data = f"{output_file}.data"
+
+    if os.path.isfile(output_data):
+        os.remove(output_data)
+
+    onnx.save(
+        m,
+        output_file,
+        save_as_external_data = True,
+        all_tensors_to_one_file = True,
+        location = output_data.split("/")[-1],
+        size_threshold = 1024,
+    )
+
+    print(f"saved {output_file}")
+
+
+def check_onnx(path: str):
+    """
+    
+        check if a save graph have a coherent structure
+
+    Args:
+        path (str): file to examinate
+    """    
+
+    try:
+        print("ONNX CHECK")
+        onnx.checker.check_model(path)
+        print("ONNX SUCCEEDED")
+    except Exception as e:
+        print("ONNX CHECK FAILED:", type(e), e)
+        raise
+
 
 
