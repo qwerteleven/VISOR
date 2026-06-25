@@ -3,6 +3,7 @@ from transformers import AutoModelForCausalLM
 from transformers import AutoModelForMultimodalLM  
 from typing import List
 import logging
+import os.path
 import onnx
 import numpy as np
 from collections import defaultdict
@@ -238,7 +239,94 @@ def patch_reduce(onnx_path):
     return m
 
 
+def patch_split_sequence(onnx_path):
 
+    m = onnx.load(onnx_path, load_external_data=True)
+    graph = m.graph
+    output_to_node = {}
+    consumer_map = {}
 
+    for n in graph.node:
 
+        for o in n.output:
+            output_to_node[o] = n
+
+        for inp in n.input:
+            consumer_map.setdefault(inp, []).append(n)
+
+    sts_nodes = [n for n in graph.node if n.op_type == "SplitToSequence"]
+    print(f"processing {len(sts_nodes)} SplitToSequence nodes")
+
+    to_delete = set()
+    new_nodes = []
+    patched = 0
+
+    for n in sts_nodes:
+        data_input = n.input[0]
+        split_sizes_node = output_to_node.get(n.input[1])
+        sizes = _get_const_value(split_sizes_node)
+
+        if sizes is None:
+            print(f"SKIP {n.name}: couldn't resolve static split sizes")
+            continue
+
+        axis = -1
+        for a in n.attribute:
+            if a.name == "axis":
+                axis = a.i
+
+        consumers = consumer_map.get(n.output[0], [])
+        seq_at_consumers = [c for c in consumers if c.op_type == "SequenceAt"]
+
+        if len(seq_at_consumers) != len(sizes):
+            print(f"SKIP {n.name}: {len(seq_at_consumers)} SequenceAt consumers != {len(sizes)} split sizes")
+            continue
+
+        idx_to_seqat = {}
+        ok = True
+
+        for c in seq_at_consumers:
+            idx_node = output_to_node.get(c.input[1])
+            idx_val = _get_const_value(idx_node)
+            if idx_val is None:
+                ok = False
+                break
+        
+            idx_to_seqat[int(idx_val.reshape(-1)[0])] = c
+
+        if not ok or set(idx_to_seqat.keys()) != set(range(len(sizes))):
+            print(f"SKIP {n.name}: non-static or non-contiguous indices")
+            continue
+
+        split_outputs = [f"{n.name}_split_out_{i}" for i in range(len(sizes))]
+        split_node = onnx.helper.make_node(
+            "Split",
+            inputs=[data_input, n.input[1]],
+            outputs=split_outputs,
+            name=n.name + "_as_split",
+            axis=axis,
+        )
+        new_nodes.append(split_node)
+
+        for i, seqat_node in idx_to_seqat.items():
+            old_out = seqat_node.output[0]
+            new_out = split_outputs[i]
+            for other in graph.node:
+                for j, inp in enumerate(other.input):
+                    if inp == old_out:
+                        other.input[j] = new_out
+            to_delete.add(seqat_node.name)
+        to_delete.add(n.name)
+        patched += 1
+
+    print(f"rewrote {patched} SplitToSequence groups into plain Split")
+
+    remaining_nodes = [nd for nd in graph.node if nd.name not in to_delete]
+    del graph.node[:]
+    graph.node.extend(remaining_nodes)
+    graph.node.extend(new_nodes)
+
+    _topo_sort(graph)
+
+    return m
 
