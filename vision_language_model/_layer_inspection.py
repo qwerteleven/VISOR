@@ -1,7 +1,7 @@
 
 from transformers import AutoModelForCausalLM
 from transformers import AutoModelForMultimodalLM  
-from typing import List
+from typing import List, Dict
 import logging
 import os.path
 import onnx
@@ -106,7 +106,17 @@ def patch_clamp_limit(model: AutoModelForMultimodalLM) -> AutoModelForMultimodal
     return model
 
 
-def _get_const_value(const_node):
+def _get_const_value(const_node: Dict) -> None | np.array :
+    """
+    
+        get the constant value over shapes and scalars
+
+    Args:
+        const_node (Dict): ONNX nodes
+
+    Returns:
+        None | np.array: if not found constant values | shape ->  None
+    """    
     for a in const_node.attribute:
 
         if a.name == "value":
@@ -122,6 +132,19 @@ def _get_const_value(const_node):
 
 
 def _topo_sort(graph):
+    """
+    
+        sort the topology of the ONNX graph, trace for aisolated nodes
+
+    Args:
+        graph (ONNX.graph): graph to sort
+
+    Raises:
+        RuntimeError: graph route have not retonable nodes
+
+    Returns:
+        ONNX.graph: sort graph
+    """    
     available = set(i.name for i in graph.input) | set(i.name for i in graph.initializer)
     sorted_nodes, remaining = [], list(graph.node)
 
@@ -153,9 +176,19 @@ def _topo_sort(graph):
     graph.node.extend(sorted_nodes)
 
     return graph
+  
 
+def patch_reduce(onnx_path: str):
+    """
+        reduce sequence across ONNX graph
 
-def patch_reduce(onnx_path):
+    Args:
+        onnx_path (str): path to load model
+
+    Returns:
+        ONNX: modified graph
+    """    
+
 
     m = onnx.load(onnx_path, load_external_data=True)
     graph = m.graph
@@ -239,7 +272,17 @@ def patch_reduce(onnx_path):
     return m
 
 
-def patch_split_sequence(onnx_path):
+def patch_split_sequence(onnx_path: str):
+    """
+    
+        split sequence across ONNX graph
+
+    Args:
+        onnx_path (str): path to load model
+
+    Returns:
+        ONNX: modified model
+    """    
 
     m = onnx.load(onnx_path, load_external_data=True)
     graph = m.graph
