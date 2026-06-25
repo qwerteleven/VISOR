@@ -42,69 +42,11 @@ import traceback
 root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(root_folder)
 
+from _layer_inspection import get_owning_layer_indices, get_layer_types
 from utils.io import get_config, set_logger
 config = get_config("config.json", "onnx_export_text") 
 set_logger("../logs", os.path.basename(sys.argv[0]))
 
-
-
-def get_owning_layer_indices(model: AutoModelForCausalLM) -> List:
-    """ 
-    
-        (is_kv_shared_layer == False), in order. Should be length 24 for Gemma4 text.
-
-    Args:
-        model (AutoModelForCausalLM): internal text model 
-
-    Returns:
-        List: the list of layer indices that actually own/store cache
-    """    
-
-    try:
-        layers = model.model.language_model.layers
-    except Exception as e:
-        
-        msg = f"can not access to language layers, error: {e}"
-        logging.error(msg)
-        print(msg)
-
-    owning = [
-        i 
-        for i, 
-        layer in enumerate(layers) 
-        if not layer.self_attn.is_kv_shared_layer
-    ]
-
-    assert len(owning) > 0
-
-    return owning
-
-
-def get_layer_types(model: AutoModelForCausalLM, owning_indices: List) -> List:
-    """
-    
-        layer_type string ('sliding_attention' / 'full_attention') per owning layer index.
-
-    Args:
-        model (AutoModelForCausalLM): internal text model 
-        owning_indices (List): _description_
-
-    Returns:
-        List: model list types per layers
-    """  
-
-    try:
-        layer_types = model.config.text_config.layer_types
-    except Exception as e:
-        msg = f"can not access to language text_config layer_types, error: {e}"
-        logging.error(msg)
-        print(msg)
-
-    list_types = [layer_types[i] for i in owning_indices]
-
-    assert len(list_types) > 0
-
-    return list_types
 
 
 class Gemma4_text_wrapper(torch.nn.Module):
