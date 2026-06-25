@@ -25,14 +25,14 @@ from transformers.cache_utils import StaticCache
 from typing import Tuple, List
 from torch.export import Dim
 
-from _layer_inspection import get_owning_layer_indices, get_layer_types, patch_clamp_limit, patch_reduce
+from _layer_inspection import get_owning_layer_indices, get_layer_types, patch_clamp_limit, patch_reduce, patch_split_sequence
 
 
 root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(root_folder)
 
 from _layer_inspection import get_owning_layer_indices, get_layer_types
-from utils.io import get_config, set_logger
+from utils.io import get_config, set_logger, save_onnx, check_onnx
 config = get_config("config.json", "onnx_export_vision") 
 set_logger("../logs", os.path.basename(sys.argv[0]))
 
@@ -288,14 +288,19 @@ if __name__ == "__main__":
         print("EXPORT FAILED:", type(e), e)
         raise
 
-    print("Patch reduce")
-    exported = patch_reduce(config["output_path"])
+    check_onnx(config["output_path"])
 
-    try:
-        print("ONNX CHECK")
-        onnx.checker.check_model(config["output_path"])
-        print("ONNX SUCCEEDED")
-    except Exception as e:
-        print("ONNX CHECK FAILED:", type(e), e)
-        raise
+    print("Patch reduce")
+    output_reduce = f"{config['output_path'].replace('.onnx', '')}_reduce.onnx"
+    m = patch_reduce(config["output_path"])
+    save_onnx(output_reduce, m)
+    check_onnx(output_reduce)
+
+    print("Patch split sequence")
+    output_reduce_split = f"{output_reduce.replace('.onnx', '')}_split.onnx"
+    m = patch_split_sequence(output_reduce)
+    save_onnx(output_reduce_split, m)
+    check_onnx(output_reduce_split)
+
+
 
