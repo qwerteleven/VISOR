@@ -25,7 +25,7 @@ from transformers.cache_utils import StaticCache
 from typing import Tuple, List
 from torch.export import Dim
 
-from _layer_inspection import get_owning_layer_indices, get_layer_types, patch_clamp_limit
+from _layer_inspection import get_owning_layer_indices, get_layer_types, patch_clamp_limit, patch_reduce
 
 
 root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -288,6 +288,8 @@ if __name__ == "__main__":
         print("EXPORT FAILED:", type(e), e)
         raise
 
+    print("Patch reduce")
+    exported = patch_reduce(config["output_path"])
 
     try:
         print("ONNX CHECK")
