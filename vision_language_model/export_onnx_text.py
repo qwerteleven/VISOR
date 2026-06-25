@@ -42,8 +42,8 @@ import traceback
 root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(root_folder)
 
-from _layer_inspection import get_owning_layer_indices, get_layer_types
-from utils.io import get_config, set_logger
+from _layer_inspection import get_owning_layer_indices, get_layer_types, check_onnx
+from utils.io import get_config, set_logger, check_onnx
 config = get_config("config.json", "onnx_export_text") 
 set_logger("../logs", os.path.basename(sys.argv[0]))
 
@@ -362,12 +362,5 @@ if __name__ == "__main__":
     except Exception as e:
         print("EXPORT FAILED:", type(e), e)
         raise
-
     
-    try:
-        print("ONNX CHECK")
-        onnx.checker.check_model(config["output_path"])
-        print("ONNX SUCCEEDED")
-    except Exception as e:
-        print("ONNX CHECK FAILED:", type(e), e)
-        raise
+    check_onnx(config["output_path"])
