@@ -32,6 +32,23 @@
         "memory_size_gb": 20
 
     },
+    "onnx_export_vision": {
+        "MAX_BATCH_SIZE": 1,
+        "PREFILL_LEN": 512,
+        "PREFILL_LEN_TRACE": 16,
+        "model_id": "google/gemma-4-E4B-it",
+        "output_path": "onnx_weights/gemma_vision_cache.onnx",
+        "message":
+        [
+            {
+                "role": "user", "content": 
+                [
+                    {"type": "image", "image": "http://images.cocodataset.org/val2017/000000077595.jpg"},
+                    {"type": "text", "text": "Generate a description of the primary object, respond to this questions, whats is?, for what work, about what is compose?"}
+                ]
+            }
+        ]
+    },
     "onnx_export_text": {
         "MAX_BATCH_SIZE": 1,
         "PREFILL_LEN": 512,
