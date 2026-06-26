@@ -1,7 +1,7 @@
 
 from transformers import AutoModelForCausalLM
 from transformers import AutoModelForMultimodalLM  
-from typing import List, Dict
+from typing import List, Dict, Union
 import logging
 import os.path
 import onnx
@@ -106,7 +106,7 @@ def patch_clamp_limit(model: AutoModelForMultimodalLM) -> AutoModelForMultimodal
     return model
 
 
-def _get_const_value(const_node: Dict) -> None | np.array :
+def _get_const_value(const_node: Dict) -> Union[None, np.array]:
     """
     
         get the constant value over shapes and scalars
