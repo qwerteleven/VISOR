@@ -103,7 +103,7 @@ class KVCacheManager:
         return self.tensors[layer_idx][kind]
 
     # --- name mapping for TensorRT binding ---
-    def flat_input_names(self, name_template="past_key_values.{idx}.{kind}"):
+    def flat_input_names(self, name_template = "flat_cache_in_{idx}"):
         """Names matching what the ONNX export should produce for cache inputs,
         in flat order. Adjust name_template if your actual export uses a
         different naming convention -- check with `engine.get_tensor_name(i)`
