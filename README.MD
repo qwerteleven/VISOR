@@ -13,7 +13,8 @@ Mobile Browser ──WebRTC/WebSocket──▶ MediaMTX ──▶ Python Backend
   <source src="https://github.com/qwerteleven/VISOR/edit/master/0626.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
-
+![Video](https://github.com/qwerteleven/VISOR/edit/master/0626.mp4)
+![Video](0626.mp4)
 
 ---
 
