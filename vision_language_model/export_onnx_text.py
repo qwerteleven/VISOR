@@ -42,7 +42,7 @@ import traceback
 root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(root_folder)
 
-from _layer_inspection import get_owning_layer_indices, get_layer_types, check_onnx
+from _layer_inspection import get_owning_layer_indices, get_layer_types
 from utils.io import get_config, set_logger, check_onnx
 config = get_config("config.json", "onnx_export_text") 
 set_logger("../logs", os.path.basename(sys.argv[0]))
