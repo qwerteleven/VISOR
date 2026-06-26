@@ -27,8 +27,8 @@
 
     },    
     "export_vision_tensorRT": {
-        "model_path": "onnx_weights/gemma_vision_kv_cache_split_sequence.onnx",
-        "output_name": "tensorRT_weights/gemma_vision_kv_cache.engine",
+        "model_path": "onnx_weights/gemma_vision_cache_reduce_split.onnx",
+        "output_name": "tensorRT_weights/gemma_vision_cache.engine",
         "memory_size_gb": 20
 
     },
@@ -96,6 +96,6 @@
         "max_iteration": 20000,
         "outputs_shapes": [[1, 296, 262144], [-1,2560]],
         "prompt": "object inside box",
-        "engine_file_path": "tensorRT_weights/gemma.engine"
+        "engine_file_path": "tensorRT_weights/gemma_text_cache.engine"
     }
 }
