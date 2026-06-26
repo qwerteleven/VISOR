@@ -8,23 +8,12 @@ Mobile Browser ──WebRTC/WebSocket──▶ MediaMTX ──▶ Python Backend
      └◀──────────── Processed overlay (WebSocket) ──────────┘
 ```
 
-
-<video controls width="100%">
-  <source src="https://github.com/qwerteleven/VISOR/edit/master/0626.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
-![Video](https://github.com/qwerteleven/VISOR/edit/master/0626.mp4)
-![Video](0626.mp4)
-
 ---
-
 
 
 ## Disclaimer
 
 **The codebase, develop scope, is the describe in README.MD file, the other files are strategic thinking, future vision of the project, not the real scope**
-
-
 
 
 ---
