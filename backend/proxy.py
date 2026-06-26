@@ -13,6 +13,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
 
 from typing import Dict, Tuple
+import os 
+import sys
+
+
+root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(root_folder)
 
 
 from utils.io import set_logger, load_config

@@ -19,7 +19,6 @@ def overlay_masks(image: np.array, masks: torch.Tensor) -> np.array:
         np.array: image overlaped with masks
     """  
 
-    assert masks.shape == (1, 1008, 1008, 3)
 
     image = image.convert("RGBA")
     masks = 255 * masks.cpu().numpy().astype(np.uint8)
