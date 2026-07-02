@@ -8,26 +8,17 @@ import logging
 root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(root_folder)
 
-from utils.io import get_config, set_logger
+from utils.io import get_config, set_logger # noqa: E402
+from utils.trt_logger import trt_logger     # noqa: E402
+
+
 config = get_config("config.json", "export_tensorRT") 
 set_logger("../logs", os.path.basename(sys.argv[0]))
 
 
-logger = trt.Logger(trt.Logger.WARNING)
+logger = trt_logger()
 trt.init_libnvinfer_plugins(logger, "")
 model_path = config["model_path"] 
-
-
-
-class MyLogger(trt.ILogger):
-    def __init__(self):
-       trt.ILogger.__init__(self)
-
-    def log(self, severity, msg):
-        logging.info(msg)
-        print(severity, msg)
-
-logger = MyLogger()
 
 builder = trt.Builder(logger)
 network = builder.create_network()
