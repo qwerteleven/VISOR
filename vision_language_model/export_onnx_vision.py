@@ -16,23 +16,20 @@ so the decode engine can consume what this one produces without remapping.
 """
 
 import torch
-import onnx
 import os
 import sys
 from transformers import AutoProcessor
 from transformers import AutoModelForMultimodalLM  
-from transformers.cache_utils import StaticCache
 from typing import Tuple, List
 from torch.export import Dim
-
-from _layer_inspection import get_owning_layer_indices, get_layer_types, patch_clamp_limit, patch_reduce, patch_split_sequence
-
 
 root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(root_folder)
 
-from _layer_inspection import get_owning_layer_indices, get_layer_types
-from utils.io import get_config, set_logger, save_onnx, check_onnx
+from _layer_inspection import get_owning_layer_indices, get_layer_types, patch_clamp_limit, patch_reduce, patch_split_sequence # noqa: E402
+from utils.io import get_config, set_logger, save_onnx, check_onnx                                                             # noqa: E402
+
+
 config = get_config("config.json", "onnx_export_vision") 
 set_logger("../logs", os.path.basename(sys.argv[0]))
 
