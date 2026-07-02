@@ -15,7 +15,9 @@ from fastapi.responses import StreamingResponse
 from typing import Dict, Tuple
 
 
-root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+root_folder = os.path.abspath(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 sys.path.append(root_folder)
 
 
@@ -28,26 +30,30 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins = config_cache["CORS_ALLOW"]["allow_origins"],
-    allow_methods = config_cache["CORS_ALLOW"]["allow_methods"],
-    allow_headers = config_cache["CORS_ALLOW"]["allow_headers"]
+    allow_origins=config_cache["CORS_ALLOW"]["allow_origins"],
+    allow_methods=config_cache["CORS_ALLOW"]["allow_methods"],
+    allow_headers=config_cache["CORS_ALLOW"]["allow_headers"],
 )
 
 
-app.mount(config_cache["endpoints"]["static"], StaticFiles(directory="../frontend"), name="static")
+app.mount(
+    config_cache["endpoints"]["static"],
+    StaticFiles(directory="../frontend"),
+    name="static",
+)
 
 
 @app.get(config_cache["endpoints"]["root"])
 async def root() -> FileResponse:
     """
-    
+
         give the init of the web
 
     Returns:
         FileResponse: index.html of the  web
-    """   
+    """
 
-    response =  FileResponse(config_cache["frontend_index_file"])
+    response = FileResponse(config_cache["frontend_index_file"])
 
     assert response is not None
 
@@ -57,12 +63,12 @@ async def root() -> FileResponse:
 @app.get(config_cache["endpoints"]["config"])
 async def get_client_config() -> Dict:
     """
-    
+
         give to web client internal allow routes
 
     Returns:
         dict: routes to call services
-    """    
+    """
     try:
         cfg = config_cache["client"]
     except KeyError:
@@ -76,17 +82,16 @@ async def get_client_config() -> Dict:
 
 async def _client_to_backend(websocket: WebSocket, backend: websockets):
     """
-    
+
         connection between client to backend
 
     Args:
         websocket WebSocket: channel input
         backend websockets.connect: channel output
-    """    
+    """
 
     assert websocket is not None
     assert backend is not None
-
 
     try:
         while True:
@@ -104,7 +109,7 @@ async def _client_to_backend(websocket: WebSocket, backend: websockets):
         logging.error(msg)
         print(msg)
         print(traceback.format_exc())
-        
+
 
 async def _backend_to_client(websocket: WebSocket, backend: websockets):
     """
@@ -114,7 +119,7 @@ async def _backend_to_client(websocket: WebSocket, backend: websockets):
     Args:
         websocket WebSocket: channel output
         backend websockets.connect: channel input
-    """   
+    """
 
     assert websocket is not None
     assert backend is not None
@@ -139,13 +144,13 @@ async def _backend_to_client(websocket: WebSocket, backend: websockets):
 @app.websocket(config_cache["endpoints"]["overlay"])
 async def websocket_proxy(websocket: WebSocket):
     """
-    
-        connect websocket comunication between internal streaming service 
-        and web client 
+
+        connect websocket comunication between internal streaming service
+        and web client
 
     Args:
         websocket (WebSocket): websocket object
-    """   
+    """
 
     assert websocket is not None
 
@@ -154,14 +159,13 @@ async def websocket_proxy(websocket: WebSocket):
     try:
         async with websockets.connect(
             f"ws://localhost:{config_cache['sam_port']}{config_cache['endpoints']['overlay']}",
-            open_timeout = config_cache["websocket_connection"]["open_timeout"],
-            ping_interval = config_cache["websocket_connection"]["ping_interval"],
-            ping_timeout = config_cache["websocket_connection"]["ping_timeout"],
+            open_timeout=config_cache["websocket_connection"]["open_timeout"],
+            ping_interval=config_cache["websocket_connection"]["ping_interval"],
+            ping_timeout=config_cache["websocket_connection"]["ping_timeout"],
         ) as backend:
-
             await asyncio.gather(
-                _client_to_backend(websocket, backend), 
-                _backend_to_client(websocket, backend)
+                _client_to_backend(websocket, backend),
+                _backend_to_client(websocket, backend),
             )
 
     except Exception as e:
@@ -181,7 +185,7 @@ async def websocket_proxy(websocket: WebSocket):
 
 def get_target(path: str) -> Tuple[str, str | None, None]:
     """
-    
+
         get the corresponding endpoint for the request
 
     Args:
@@ -189,16 +193,18 @@ def get_target(path: str) -> Tuple[str, str | None, None]:
 
     Returns:
         Tuple[None, None]: default response
-    """   
+    """
 
     for service in config_cache["services"]:
         if path.startswith(service["route"]):
             return service["target"], service["route"]
-        
+
     return None, None
 
 
-async def _stream_generator(request: Request, timeout: httpx.Timeout, url: str, headers: Dict):
+async def _stream_generator(
+    request: Request, timeout: httpx.Timeout, url: str, headers: Dict
+):
     """
 
         generates consumable chuck of straming data for the web streaming
@@ -211,9 +217,9 @@ async def _stream_generator(request: Request, timeout: httpx.Timeout, url: str, 
 
     Yields:
         Iterator[AsyncIterator[bytes]]: chuck of bytes of the streaming
-    """   
+    """
 
-    async with httpx.AsyncClient(timeout = timeout) as client:
+    async with httpx.AsyncClient(timeout=timeout) as client:
         async with client.stream(
             method=request.method,
             url=url,
@@ -227,7 +233,7 @@ async def _stream_generator(request: Request, timeout: httpx.Timeout, url: str, 
 @app.api_route("/{path:path}", methods=config_cache["allow_methods"]["proxy"])
 async def proxy(request: Request, path: str):
     """
-    
+
         creates the connections between internal services and the client
 
     Args:
@@ -236,7 +242,7 @@ async def proxy(request: Request, path: str):
 
     Returns:
         Response: respose of server to client
-    """  
+    """
 
     assert request is not None
 
@@ -248,22 +254,23 @@ async def proxy(request: Request, path: str):
 
     url = f"{target}{full_path}"
     headers = {
-        k: v for k, v in request.headers.items()
+        k: v
+        for k, v in request.headers.items()
         if k.lower() not in config_cache["filter_headers"]
     }
 
     try:
         if route == config_cache["endpoints"]["stream"]:
-            timeout = httpx.Timeout(config_cache["streaming_timeout"], read = None)
+            timeout = httpx.Timeout(config_cache["streaming_timeout"], read=None)
             return StreamingResponse(
                 _stream_generator(request, timeout, url, headers),
                 media_type=config_cache["streaming_mediatype"],
             )
-    
+
         # Default connection to client
         timeout = httpx.Timeout(
-            config_cache["client_timeouts"]["time"], 
-            read = config_cache["client_timeouts"]["read"]
+            config_cache["client_timeouts"]["time"],
+            read=config_cache["client_timeouts"]["read"],
         )
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.request(
@@ -275,7 +282,8 @@ async def proxy(request: Request, path: str):
             )
 
         response_headers = {
-            k: v for k, v in response.headers.items()
+            k: v
+            for k, v in response.headers.items()
             if k.lower() not in config_cache["exclude_headers"]
         }
 
@@ -298,7 +306,6 @@ async def proxy(request: Request, path: str):
 
 
 if __name__ == "__main__":
-
     uvicorn.run(
         app,
         host=config_cache["proxy_config"]["host"],
@@ -306,6 +313,6 @@ if __name__ == "__main__":
         ssl_keyfile=config_cache["keyfile"],
         ssl_certfile=config_cache["certified"],
         ws=config_cache["proxy_config"]["ws"],
-        http=config_cache["proxy_config"]["http"],         
+        http=config_cache["proxy_config"]["http"],
         loop=config_cache["proxy_config"]["loop"],
     )

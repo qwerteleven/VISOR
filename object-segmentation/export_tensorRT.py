@@ -1,24 +1,26 @@
-
 import os
-os.environ['CUDA_MODULE_LOADING'] = 'LAZY'
+
+os.environ["CUDA_MODULE_LOADING"] = "LAZY"
 import tensorrt as trt
 import sys
 import logging
 
-root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+root_folder = os.path.abspath(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 sys.path.append(root_folder)
 
-from utils.io import get_config, set_logger # noqa: E402
-from utils.trt_logger import trt_logger     # noqa: E402
+from utils.io import get_config, set_logger  # noqa: E402
+from utils.trt_logger import trt_logger  # noqa: E402
 
 
-config = get_config("config.json", "export_tensorRT") 
+config = get_config("config.json", "export_tensorRT")
 set_logger("../logs", os.path.basename(sys.argv[0]))
 
 
 logger = trt_logger()
 trt.init_libnvinfer_plugins(logger, "")
-model_path = config["model_path"] 
+model_path = config["model_path"]
 
 builder = trt.Builder(logger)
 network = builder.create_network()
@@ -36,14 +38,18 @@ if not success:
 
 
 config_build = builder.create_builder_config()
-config_build.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, config["memory_size_gb"] << 30)
+config_build.set_memory_pool_limit(
+    trt.MemoryPoolType.WORKSPACE, config["memory_size_gb"] << 30
+)
 
 if builder.platform_has_fast_fp16:
     config_build.set_flag(trt.BuilderFlag.FP16)
 
 
 try:
-    config_build.builder_optimization_level = 5      # 0–5; 5 = longest build, fastest engine
+    config_build.builder_optimization_level = (
+        5  # 0–5; 5 = longest build, fastest engine
+    )
 except AttributeError:
     msg = "older TRT version"
     logging.error(msg)
@@ -52,11 +58,10 @@ except AttributeError:
 serialized_engine = builder.build_serialized_network(network, config_build)
 
 
-try: 
+try:
     with open(config["output_name"], "wb") as f:
         f.write(serialized_engine)
 except FileNotFoundError:
     msg = "can not write the engine, check disk space, and logs"
     logging.error(msg)
     print(msg)
-

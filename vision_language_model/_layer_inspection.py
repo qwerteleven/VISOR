@@ -1,6 +1,5 @@
-
 from transformers import AutoModelForCausalLM
-from transformers import AutoModelForMultimodalLM  
+from transformers import AutoModelForMultimodalLM
 from typing import List, Dict, Union
 import logging
 import onnx
@@ -8,32 +7,27 @@ import numpy as np
 from collections import defaultdict
 
 
-
 def get_owning_layer_indices(model: AutoModelForCausalLM) -> List:
-    """ 
-    
+    """
+
         (is_kv_shared_layer == False), in order. Should be length 24 for Gemma4 text.
 
     Args:
-        model (AutoModelForCausalLM): internal text model 
+        model (AutoModelForCausalLM): internal text model
 
     Returns:
         List: the list of layer indices that actually own/store cache
-    """    
+    """
 
     try:
         layers = model.model.language_model.layers
     except Exception as e:
-        
         msg = f"can not access to language layers, error: {e}"
         logging.error(msg)
         print(msg)
 
     owning = [
-        i 
-        for i, 
-        layer in enumerate(layers) 
-        if not layer.self_attn.is_kv_shared_layer
+        i for i, layer in enumerate(layers) if not layer.self_attn.is_kv_shared_layer
     ]
 
     assert len(owning) > 0
@@ -43,16 +37,16 @@ def get_owning_layer_indices(model: AutoModelForCausalLM) -> List:
 
 def get_layer_types(model: AutoModelForCausalLM, owning_indices: List) -> List:
     """
-    
+
         layer_type string ('sliding_attention' / 'full_attention') per owning layer index.
 
     Args:
-        model (AutoModelForCausalLM): internal text model 
+        model (AutoModelForCausalLM): internal text model
         owning_indices (List): _description_
 
     Returns:
         List: model list types per layers
-    """  
+    """
 
     try:
         layer_types = model.config.text_config.layer_types
@@ -70,7 +64,7 @@ def get_layer_types(model: AutoModelForCausalLM, owning_indices: List) -> List:
 
 def patch_clamp_limit(model: AutoModelForMultimodalLM) -> AutoModelForMultimodalLM:
     """
-    
+
         creates static limits for be traced by ONNX
 
     Args:
@@ -78,11 +72,10 @@ def patch_clamp_limit(model: AutoModelForMultimodalLM) -> AutoModelForMultimodal
 
     Returns:
         AutoModelForMultimodalLM: modified model
-    """    
+    """
     patched_count = 0
     for name, module in model.named_modules():
         if hasattr(module, "input_min") and hasattr(module, "input_max"):
-            
             input_min_val = float(module.input_min.item())
             input_max_val = float(module.input_max.item())
             output_min_val = float(module.output_min.item())
@@ -100,14 +93,16 @@ def patch_clamp_limit(model: AutoModelForMultimodalLM) -> AutoModelForMultimodal
 
             patched_count += 1
 
-    print(f"patched {patched_count} clipped-linear modules (vision + audio + any others)")
+    print(
+        f"patched {patched_count} clipped-linear modules (vision + audio + any others)"
+    )
 
     return model
 
 
 def _get_const_value(const_node: Dict) -> Union[None, np.array]:
     """
-    
+
         get the constant value over shapes and scalars
 
     Args:
@@ -115,24 +110,23 @@ def _get_const_value(const_node: Dict) -> Union[None, np.array]:
 
     Returns:
         None | np.array: if not found constant values | shape ->  None
-    """    
+    """
     for a in const_node.attribute:
-
         if a.name == "value":
             return onnx.numpy_helper.to_array(a.t)
-        
+
         if a.name == "value_ints":
             return np.array(list(a.ints), dtype=np.int64)
-        
+
         if a.name == "value_int":
             return np.array([a.i], dtype=np.int64)
-        
+
     return None
 
 
 def _topo_sort(graph):
     """
-    
+
         sort the topology of the ONNX graph, trace for aisolated nodes
 
     Args:
@@ -143,8 +137,10 @@ def _topo_sort(graph):
 
     Returns:
         ONNX.graph: sort graph
-    """    
-    available = set(i.name for i in graph.input) | set(i.name for i in graph.initializer)
+    """
+    available = set(i.name for i in graph.input) | set(
+        i.name for i in graph.initializer
+    )
     sorted_nodes, remaining = [], list(graph.node)
 
     while remaining:
@@ -163,19 +159,19 @@ def _topo_sort(graph):
             raise RuntimeError(
                 f"""stuck: {
                     [
-                    (n.name, [i for i in n.input if i not in available]) 
-                    for n in still[:5]
+                        (n.name, [i for i in n.input if i not in available])
+                        for n in still[:5]
                     ]
                 }"""
             )
-        
+
         remaining = still
 
     del graph.node[:]
     graph.node.extend(sorted_nodes)
 
     return graph
-  
+
 
 def patch_reduce(onnx_path: str):
     """
@@ -186,8 +182,7 @@ def patch_reduce(onnx_path: str):
 
     Returns:
         ONNX: modified graph
-    """    
-
+    """
 
     m = onnx.load(onnx_path, load_external_data=True)
     graph = m.graph
@@ -233,10 +228,10 @@ def patch_reduce(onnx_path: str):
 
         new_const = onnx.helper.make_node(
             "Constant",
-            inputs = [],
-            outputs = [folded_name],
-            name = f"{node.name}_folded_const",
-            value = onnx.numpy_helper.from_array(folded_array, name=folded_name),
+            inputs=[],
+            outputs=[folded_name],
+            name=f"{node.name}_folded_const",
+            value=onnx.numpy_helper.from_array(folded_array, name=folded_name),
         )
 
         old_output = node.output[0]
@@ -246,8 +241,7 @@ def patch_reduce(onnx_path: str):
                     consumer.input[i] = folded_name
 
         graph.node.append(new_const)
-        to_delete.add(node.name)  
-        
+        to_delete.add(node.name)
 
         consumer_count[node.input[0]] -= 1
         consumer_count[node.input[1]] -= 1
@@ -265,7 +259,7 @@ def patch_reduce(onnx_path: str):
     new_nodes = [n for n in graph.node if n.name not in to_delete]
     del graph.node[:]
     graph.node.extend(new_nodes)
-        
+
     graph = _topo_sort(graph)
 
     return m
@@ -273,7 +267,7 @@ def patch_reduce(onnx_path: str):
 
 def patch_split_sequence(onnx_path: str):
     """
-    
+
         split sequence across ONNX graph
 
     Args:
@@ -281,7 +275,7 @@ def patch_split_sequence(onnx_path: str):
 
     Returns:
         ONNX: modified model
-    """    
+    """
 
     m = onnx.load(onnx_path, load_external_data=True)
     graph = m.graph
@@ -289,7 +283,6 @@ def patch_split_sequence(onnx_path: str):
     consumer_map = {}
 
     for n in graph.node:
-
         for o in n.output:
             output_to_node[o] = n
 
@@ -321,7 +314,9 @@ def patch_split_sequence(onnx_path: str):
         seq_at_consumers = [c for c in consumers if c.op_type == "SequenceAt"]
 
         if len(seq_at_consumers) != len(sizes):
-            print(f"SKIP {n.name}: {len(seq_at_consumers)} SequenceAt consumers != {len(sizes)} split sizes")
+            print(
+                f"SKIP {n.name}: {len(seq_at_consumers)} SequenceAt consumers != {len(sizes)} split sizes"
+            )
             continue
 
         idx_to_seqat = {}
@@ -333,7 +328,7 @@ def patch_split_sequence(onnx_path: str):
             if idx_val is None:
                 ok = False
                 break
-        
+
             idx_to_seqat[int(idx_val.reshape(-1)[0])] = c
 
         if not ok or set(idx_to_seqat.keys()) != set(range(len(sizes))):
@@ -371,4 +366,3 @@ def patch_split_sequence(onnx_path: str):
     _topo_sort(graph)
 
     return m
-

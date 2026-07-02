@@ -37,15 +37,16 @@ from transformers.cache_utils import StaticCache
 from typing import List, Tuple
 from torch.export import Dim
 
-root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+root_folder = os.path.abspath(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 sys.path.append(root_folder)
 
-from _layer_inspection import get_owning_layer_indices, get_layer_types # noqa: E402
-from utils.io import get_config, set_logger, check_onnx                 # noqa: E402
+from _layer_inspection import get_owning_layer_indices, get_layer_types  # noqa: E402
+from utils.io import get_config, set_logger, check_onnx  # noqa: E402
 
-config = get_config("config.json", "onnx_export_text") 
+config = get_config("config.json", "onnx_export_text")
 set_logger("../logs", os.path.basename(sys.argv[0]))
-
 
 
 class Gemma4_text_wrapper(torch.nn.Module):
@@ -65,20 +66,22 @@ class Gemma4_text_wrapper(torch.nn.Module):
 
     """
 
-    def __init__(self, model: AutoModelForCausalLM, max_batch_size: int, max_cache_len: int):
+    def __init__(
+        self, model: AutoModelForCausalLM, max_batch_size: int, max_cache_len: int
+    ):
         """
-        
+
             Creates the object wrapper
 
         Args:
-            model (AutoModelForCausalLM): internal text model 
+            model (AutoModelForCausalLM): internal text model
             max_batch_size (int): max batch size
             max_cache_len (int): max cache len
         """
 
         super().__init__()
         assert model is not None
-        assert max_batch_size > 0 
+        assert max_batch_size > 0
         assert max_cache_len > 0
 
         self.model = model
@@ -94,12 +97,8 @@ class Gemma4_text_wrapper(torch.nn.Module):
         )
 
     def _build_cache_from_flat(
-            self, 
-            flat_cache_tensors: List, 
-            device: torch.device, 
-            dtype: torch.dtype
-        ) -> StaticCache:
-
+        self, flat_cache_tensors: List, device: torch.device, dtype: torch.dtype
+    ) -> StaticCache:
         """
 
             Construct a StaticCache and populate its owning layers' key/value
@@ -116,11 +115,13 @@ class Gemma4_text_wrapper(torch.nn.Module):
         """
 
         cache = StaticCache(
-            config=self.model.config.text_config if hasattr(self.model.config, "text_config") else self.model.config,
+            config=self.model.config.text_config
+            if hasattr(self.model.config, "text_config")
+            else self.model.config,
             max_batch_size=self.max_batch_size,
             max_cache_len=self.max_cache_len,
             device=device,
-            dtype=dtype
+            dtype=dtype,
         )
 
         assert len(flat_cache_tensors) == 2 * len(self.owning_indices), (
@@ -136,17 +137,15 @@ class Gemma4_text_wrapper(torch.nn.Module):
 
         return cache
 
-
     def forward(
-            self, 
-            input_ids: torch.Tensor, 
-            attention_mask: torch.Tensor, 
-            cache_position: torch.Tensor, 
-            *flat_cache_in: List
-        ) -> Tuple[torch.Tensor, List]:
-
+        self,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor,
+        cache_position: torch.Tensor,
+        *flat_cache_in: List,
+    ) -> Tuple[torch.Tensor, List]:
         """
-        
+
             forward of model, to trace computation flow
 
         Args:
@@ -156,8 +155,7 @@ class Gemma4_text_wrapper(torch.nn.Module):
             *flat_cache_in (List): agrupation of cache tensors IO
         Returns:
             output (Tuple[torch.Tensor, List]): logits, cache tensors
-        """        
-
+        """
 
         assert len(flat_cache_in) > 0
 
@@ -201,22 +199,20 @@ class Gemma4_text_wrapper(torch.nn.Module):
         return output
 
 
-
 def build_dummy_inputs(
-        model: AutoModelForCausalLM, 
-        wrapper: Gemma4_text_wrapper, 
-        batch_size: int, 
-        prefill_len: int, 
-        device: torch.dtype
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, List]:
-
+    model: AutoModelForCausalLM,
+    wrapper: Gemma4_text_wrapper,
+    batch_size: int,
+    prefill_len: int,
+    device: torch.dtype,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, List]:
     """
-    
+
         Construct dummy inputs for a prefill-shaped export trace.
         Cache tensors start as zeros (empty cache) -- correct for prefill.
 
     Args:
-        model (AutoModelForCausalLM): target model 
+        model (AutoModelForCausalLM): target model
         wrapper (Gemma4_text_wrapper): wrapper to make traceable computation flow
         batch_size (int): number of inputs, normally 1, text generation
         prefill_len (int): promt text lenght
@@ -224,9 +220,9 @@ def build_dummy_inputs(
 
     Returns:
         output (Tuple[torch.Tensor, torch.Tensor, torch.Tensor, List]): needed parameters for wrapper forward
-    """    
+    """
 
-    assert batch_size > 0 
+    assert batch_size > 0
     assert prefill_len > 0
 
     try:
@@ -236,11 +232,14 @@ def build_dummy_inputs(
         logging.error(msg)
         print(msg)
 
-
     assert config.vocab_size > 0
 
-    input_ids = torch.randint(0, config.vocab_size, (batch_size, prefill_len), device=device)
-    attention_mask = torch.ones((batch_size, prefill_len), dtype=torch.int64, device=device)
+    input_ids = torch.randint(
+        0, config.vocab_size, (batch_size, prefill_len), device=device
+    )
+    attention_mask = torch.ones(
+        (batch_size, prefill_len), dtype=torch.int64, device=device
+    )
     cache_position = torch.arange(prefill_len, device=device)
 
     flat_cache_in = []
@@ -251,8 +250,8 @@ def build_dummy_inputs(
         msg = f"can not access to language config num_key_value_heads, error: {e}"
         logging.error(msg)
         print(msg)
-    
-    assert num_kv_heads > 0 
+
+    assert num_kv_heads > 0
 
     for layer_idx, layer_type in zip(wrapper.owning_indices, wrapper.layer_types):
         if layer_type == "sliding_attention":
@@ -262,8 +261,16 @@ def build_dummy_inputs(
             seq_dim = wrapper.max_cache_len
             head_dim = config.global_head_dim
 
-        k = torch.zeros((batch_size, num_kv_heads, seq_dim, head_dim), dtype=model.dtype, device=device)
-        v = torch.zeros((batch_size, num_kv_heads, seq_dim, head_dim), dtype=model.dtype, device=device)
+        k = torch.zeros(
+            (batch_size, num_kv_heads, seq_dim, head_dim),
+            dtype=model.dtype,
+            device=device,
+        )
+        v = torch.zeros(
+            (batch_size, num_kv_heads, seq_dim, head_dim),
+            dtype=model.dtype,
+            device=device,
+        )
         flat_cache_in.append(k)
         flat_cache_in.append(v)
 
@@ -273,14 +280,13 @@ def build_dummy_inputs(
 
 
 if __name__ == "__main__":
-
     model_id: str = config["model_id"]
     assert len(model_id) > 0
 
     model = AutoModelForCausalLM.from_pretrained(model_id, dtype=torch.bfloat16).eval()
 
-    MAX_BATCH_SIZE: int    = config["MAX_BATCH_SIZE"]
-    PREFILL_LEN: int       = config["PREFILL_LEN"]
+    MAX_BATCH_SIZE: int = config["MAX_BATCH_SIZE"]
+    PREFILL_LEN: int = config["PREFILL_LEN"]
     PREFILL_LEN_TRACE: int = config["PREFILL_LEN_TRACE"]
 
     assert MAX_BATCH_SIZE > 0
@@ -293,7 +299,9 @@ if __name__ == "__main__":
         model, wrapper, MAX_BATCH_SIZE, PREFILL_LEN_TRACE, model.device
     )
 
-    print(f"owning layer indices ({len(wrapper.owning_indices)}): {wrapper.owning_indices}")
+    print(
+        f"owning layer indices ({len(wrapper.owning_indices)}): {wrapper.owning_indices}"
+    )
     print(f"layer types per owning layer: {wrapper.layer_types}")
     print(f"flat_cache_in count: {len(flat_cache_in)} tensors")
 
@@ -301,7 +309,6 @@ if __name__ == "__main__":
         eager_out = wrapper(input_ids, attention_mask, cache_position, *flat_cache_in)
     print("eager forward OK, logits shape:", eager_out[0].shape)
     print("eager forward OK, num cache outputs:", len(eager_out) - 1)
-
 
     print("try to export a minimal model")
     try:
@@ -317,36 +324,33 @@ if __name__ == "__main__":
         print("EXPORT FAILED:", type(e), e)
         raise
 
-
     print("checking numerical divergence")
 
     with torch.no_grad():
         eager_out = wrapper(input_ids, attention_mask, cache_position, *flat_cache_in)
 
-    exported_out = exported.module()(input_ids, attention_mask, cache_position, *flat_cache_in)
+    exported_out = exported.module()(
+        input_ids, attention_mask, cache_position, *flat_cache_in
+    )
 
     logits_diff = (eager_out[0].float() - exported_out[0].float()).abs().max()
     print("max logits diff:", logits_diff.item())
 
     for i in [0, 1, 46, 47]:  # first layer's k/v, last layer's k/v
-        diff = (eager_out[1+i].float() - exported_out[1+i].float()).abs().max()
+        diff = (eager_out[1 + i].float() - exported_out[1 + i].float()).abs().max()
         print(f"cache tensor {i} max diff:", diff.item())
-
-
 
     print("Try complete export")
 
-    seq_len_dim  = Dim("seq_len",  min=2, max=PREFILL_LEN)
+    seq_len_dim = Dim("seq_len", min=2, max=PREFILL_LEN)
     attn_len_dim = Dim("attn_len", min=2, max=PREFILL_LEN)
 
     dynamic_shapes = {
-        "input_ids":      {1: seq_len_dim},
+        "input_ids": {1: seq_len_dim},
         "attention_mask": {1: attn_len_dim},
         "cache_position": {0: seq_len_dim},
-        "flat_cache_in":  tuple({} for _ in flat_cache_in) 
-
+        "flat_cache_in": tuple({} for _ in flat_cache_in),
     }
-
 
     try:
         exported = torch.onnx.export(
@@ -355,11 +359,11 @@ if __name__ == "__main__":
             config["output_path"],
             dynamic_shapes=dynamic_shapes,
             dynamo=True,
-            external_data=True
+            external_data=True,
         )
         print("EXPORT SUCCEEDED")
     except Exception as e:
         print("EXPORT FAILED:", type(e), e)
         raise
-    
+
     check_onnx(config["output_path"])

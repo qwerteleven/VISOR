@@ -39,6 +39,7 @@ _RAW_CTYPE_BY_ITEMSIZE = {
     8: ctypes.c_uint64,
 }
 
+
 def check_cuda_err(err):
     if isinstance(err, cuda.CUresult):
         if err != cuda.CUresult.CUDA_SUCCESS:
@@ -49,6 +50,7 @@ def check_cuda_err(err):
     else:
         raise RuntimeError(f"Unknown error type: {err}")
 
+
 def cuda_call(call):
     err, res = call[0], call[1:]
     check_cuda_err(err)
@@ -56,16 +58,21 @@ def cuda_call(call):
         res = res[0]
     return res
 
+
 def GiB(val):
     return val * 1 << 30
 
 
 def add_help(description):
-    parser = argparse.ArgumentParser(description=description, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=description, formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     args, _ = parser.parse_known_args()
 
 
-def find_sample_data(description="Runs a TensorRT Python sample", subfolder="", find_files=[], err_msg=""):
+def find_sample_data(
+    description="Runs a TensorRT Python sample", subfolder="", find_files=[], err_msg=""
+):
     """
     Parses sample arguments.
 
@@ -80,7 +87,9 @@ def find_sample_data(description="Runs a TensorRT Python sample", subfolder="", 
 
     # Standard command-line arguments for all samples.
     kDEFAULT_DATA_ROOT = os.path.join(os.sep, "usr", "src", "tensorrt", "data")
-    parser = argparse.ArgumentParser(description=description, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=description, formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument(
         "-d",
         "--datadir",
@@ -95,7 +104,9 @@ def find_sample_data(description="Runs a TensorRT Python sample", subfolder="", 
         data_path = os.path.join(data_dir, subfolder)
         if not os.path.exists(data_path):
             if data_dir != kDEFAULT_DATA_ROOT:
-                print(f"WARNING: {data_path} does not exist. Trying {data_dir} instead.")
+                print(
+                    f"WARNING: {data_path} does not exist. Trying {data_dir} instead."
+                )
             data_path = data_dir
         # Make sure data directory exists.
         if not (os.path.exists(data_path)) and data_dir != kDEFAULT_DATA_ROOT:
@@ -138,13 +149,16 @@ def locate_files(data_paths, filenames, err_msg=""):
     for f, filename in zip(found_files, filenames):
         if not f or not os.path.exists(f):
             raise FileNotFoundError(
-                "Could not find {:}. Searched in data paths: {:}\n{:}".format(filename, data_paths, err_msg)
+                "Could not find {:}. Searched in data paths: {:}\n{:}".format(
+                    filename, data_paths, err_msg
+                )
             )
     return found_files
 
 
 class HostDeviceMem:
     """Pair of host and device memory, where the host memory is wrapped in a numpy array"""
+
     def __init__(self, size: int, dtype: np.dtype):
         dtype = np.dtype(dtype)
         nbytes = size * dtype.itemsize
@@ -152,19 +166,23 @@ class HostDeviceMem:
 
         try:
             pointer_type = ctypes.POINTER(np.ctypeslib.as_ctypes_type(dtype))
-            self._host = np.ctypeslib.as_array(ctypes.cast(host_mem, pointer_type), (size,))
+            self._host = np.ctypeslib.as_array(
+                ctypes.cast(host_mem, pointer_type), (size,)
+            )
         except NotImplementedError:
             # dtype has no ctypes equivalent (e.g. ml_dtypes.bfloat16) — build the view
             # using a same-itemsize raw integer type, then reinterpret (zero-copy) as
             # the real dtype so values are read/written with correct semantics.
             raw_ctype = _RAW_CTYPE_BY_ITEMSIZE[dtype.itemsize]
             pointer_type = ctypes.POINTER(raw_ctype)
-            raw_array = np.ctypeslib.as_array(ctypes.cast(host_mem, pointer_type), (size,))
+            raw_array = np.ctypeslib.as_array(
+                ctypes.cast(host_mem, pointer_type), (size,)
+            )
             self._host = raw_array.view(dtype)
 
         self._device = cuda_call(cudart.cudaMalloc(nbytes))
         self._nbytes = nbytes
-        
+
     @property
     def host(self) -> np.ndarray:
         return self._host
@@ -175,7 +193,7 @@ class HostDeviceMem:
             raise ValueError(
                 f"Tried to fit an array of size {arr.size} into host memory of size {self.host.size}"
             )
-        np.copyto(self.host[:arr.size], arr.flat, casting='safe')
+        np.copyto(self.host[: arr.size], arr.flat, casting="safe")
 
     @property
     def device(self) -> int:
@@ -215,12 +233,16 @@ def _trt_dtype_to_np(trt_dtype: trt.DataType) -> np.dtype:
     for attr_name in ("FP8", "E4M3", "E5M2"):
         fp8_dtype = getattr(trt.DataType, attr_name, None)
         if fp8_dtype is not None and trt_dtype == fp8_dtype:
-            fallback[trt_dtype] = ml_dtypes.float8_e4m3 if "E4M3" in attr_name else ml_dtypes.float8_e5m2
+            fallback[trt_dtype] = (
+                ml_dtypes.float8_e4m3 if "E4M3" in attr_name else ml_dtypes.float8_e5m2
+            )
 
     if trt_dtype in fallback:
         return np.dtype(fallback[trt_dtype])
 
-    raise TypeError(f"No numpy/ml_dtypes mapping available for TensorRT dtype: {trt_dtype}")
+    raise TypeError(
+        f"No numpy/ml_dtypes mapping available for TensorRT dtype: {trt_dtype}"
+    )
 
 
 # Allocates all buffers required for an engine, i.e. host/device inputs/outputs.
@@ -229,14 +251,16 @@ def allocate_buffers(
     engine: trt.ICudaEngine,
     profile_idx: Optional[int] = None,
     stream: Optional[int] = None,
-    context = None
+    context=None,
 ) -> tuple[list, list, list, int]:
     inputs, outputs, bindings = [], [], []
 
     if stream is None:
         stream = cuda_call(cudart.cudaStreamCreate())
 
-    implicit_batch_mult = engine.max_batch_size if engine.has_implicit_batch_dimension else 1
+    implicit_batch_mult = (
+        engine.max_batch_size if engine.has_implicit_batch_dimension else 1
+    )
 
     for i in range(engine.num_io_tensors):
         name = engine.get_tensor_name(i)
@@ -247,7 +271,7 @@ def allocate_buffers(
             else engine.get_tensor_shape(name)
         )
 
-        if context is not None: 
+        if context is not None:
             shape = context.get_tensor_shape(name)
 
         if any(s < 0 for s in shape):
@@ -262,15 +286,21 @@ def allocate_buffers(
         mem = HostDeviceMem(size, dtype)  # uses cudaMallocHost internally
 
         bindings.append(int(mem.device))
-        (inputs if engine.get_tensor_mode(name) == trt.TensorIOMode.INPUT else outputs).append(mem)
+        (
+            inputs
+            if engine.get_tensor_mode(name) == trt.TensorIOMode.INPUT
+            else outputs
+        ).append(mem)
 
     return inputs, outputs, bindings, stream
 
 
-
-
 # Frees the resources allocated in allocate_buffers
-def free_buffers(inputs: List[HostDeviceMem], outputs: List[HostDeviceMem], stream: cudart.cudaStream_t):
+def free_buffers(
+    inputs: List[HostDeviceMem],
+    outputs: List[HostDeviceMem],
+    stream: cudart.cudaStream_t,
+):
     for mem in inputs + outputs:
         mem.free()
     cuda_call(cudart.cudaStreamDestroy(stream))
@@ -279,24 +309,42 @@ def free_buffers(inputs: List[HostDeviceMem], outputs: List[HostDeviceMem], stre
 # Wrapper for cudaMemcpy which infers copy size and does error checking
 def memcpy_host_to_device(device_ptr: int, host_arr: np.ndarray):
     nbytes = host_arr.size * host_arr.itemsize
-    cuda_call(cudart.cudaMemcpy(device_ptr, host_arr, nbytes, cudart.cudaMemcpyKind.cudaMemcpyHostToDevice))
+    cuda_call(
+        cudart.cudaMemcpy(
+            device_ptr, host_arr, nbytes, cudart.cudaMemcpyKind.cudaMemcpyHostToDevice
+        )
+    )
 
 
 # Wrapper for cudaMemcpy which infers copy size and does error checking
 def memcpy_device_to_host(host_arr: np.ndarray, device_ptr: int):
     nbytes = host_arr.size * host_arr.itemsize
-    cuda_call(cudart.cudaMemcpy(host_arr, device_ptr, nbytes, cudart.cudaMemcpyKind.cudaMemcpyDeviceToHost))
+    cuda_call(
+        cudart.cudaMemcpy(
+            host_arr, device_ptr, nbytes, cudart.cudaMemcpyKind.cudaMemcpyDeviceToHost
+        )
+    )
 
 
 def _do_inference_base(inputs, outputs, stream, execute_async):
     # Transfer input data to the GPU.
     kind = cudart.cudaMemcpyKind.cudaMemcpyHostToDevice
-    [cuda_call(cudart.cudaMemcpyAsync(inp.device, inp.host, inp.nbytes, kind, stream)) for inp in inputs]
+    [
+        cuda_call(
+            cudart.cudaMemcpyAsync(inp.device, inp.host, inp.nbytes, kind, stream)
+        )
+        for inp in inputs
+    ]
     # Run inference.
     execute_async()
     # Transfer predictions back from the GPU.
     kind = cudart.cudaMemcpyKind.cudaMemcpyDeviceToHost
-    [cuda_call(cudart.cudaMemcpyAsync(out.host, out.device, out.nbytes, kind, stream)) for out in outputs]
+    [
+        cuda_call(
+            cudart.cudaMemcpyAsync(out.host, out.device, out.nbytes, kind, stream)
+        )
+        for out in outputs
+    ]
     # Synchronize the stream
     cuda_call(cudart.cudaStreamSynchronize(stream))
     # Return only the host outputs.
@@ -306,6 +354,7 @@ def _do_inference_base(inputs, outputs, stream, execute_async):
 def do_inference(context, engine, bindings, inputs, outputs, stream):
     def execute_async_func():
         context.execute_async_v3(stream_handle=stream)
+
     # Setup context tensor address.
     num_io = engine.num_io_tensors
     for i in range(num_io):
@@ -332,7 +381,7 @@ def get_input_output(engine):
 
 def to_host_bytes(z: np.array) -> np.array:
     """
-    
+
         Convert any numpy/ml_dtypes array to a uint16/uint8 view
         safe for np.copyto into a pinned host buffer
 
@@ -341,12 +390,9 @@ def to_host_bytes(z: np.array) -> np.array:
 
     Returns:
         np.array: flat array cast  ml_dtypes.bfloat16 to np.uint16
-    """ 
+    """
 
     if z.dtype == ml_dtypes.bfloat16:
         return z.view(np.uint16).ravel()
-    
+
     return z.ravel()
-
-
-

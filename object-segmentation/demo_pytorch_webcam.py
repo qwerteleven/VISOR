@@ -7,67 +7,70 @@ from typing import Dict, List, Tuple
 from PIL import Image
 from transformers import Sam3Processor, Sam3Model
 
-root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+root_folder = os.path.abspath(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 sys.path.append(root_folder)
 
-from utils.io import get_config, set_logger                           # noqa: E402
-from utils.image_processing import overlay_masks, draw_user_rectangle # noqa: E402
-from utils.wrappers import timer                                      # noqa: E402
-from utils.streaming import streaming_pipeline_OpenCV                 # noqa: E402
+from utils.io import get_config, set_logger  # noqa: E402
+from utils.image_processing import overlay_masks, draw_user_rectangle  # noqa: E402
+from utils.wrappers import timer  # noqa: E402
+from utils.streaming import streaming_pipeline_OpenCV  # noqa: E402
 
 
-config = get_config("config.json", "demo_pytorch_webcam") 
+config = get_config("config.json", "demo_pytorch_webcam")
 set_logger("../logs", os.path.basename(sys.argv[0]))
 
 
-class sam3_model():
+class sam3_model:
     """
 
-        SAM3 model, implementation on pytorch
+    SAM3 model, implementation on pytorch
 
-    """    
+    """
 
     def __init__(self: object, config: Dict, overlay_config: Dict) -> None:
         """
 
             Create a object for handle SAM model
-        
+
         Args:
             self (object): self
             config (Dict): config of the model
 
-        """        
+        """
 
         # attention image region
         self.user_ref_point = []
         self.config = config
         self.overlay_config = overlay_config
-        self.input_boxes_labels = [[1]] 
+        self.input_boxes_labels = [[1]]
         self.input_boxes = [[[]]]
 
     def load(self: object) -> None:
         """
-        load the engine on the device 
+        load the engine on the device
 
         Args:
             self (object): self
 
-        """        
-        
+        """
+
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         self.model = Sam3Model.from_pretrained("facebook/sam3").to(self.device)
         self.processor = Sam3Processor.from_pretrained("facebook/sam3")
 
-
-    def update_attention_region(self: object, user_ref_point: List, image_shape: Tuple) -> None:
+    def update_attention_region(
+        self: object, user_ref_point: List, image_shape: Tuple
+    ) -> None:
         """
-        
+
             update the region of attention for the model
 
         Args:
             user_ref_point (List): list of points touched by the user
-        """        
+        """
 
         assert len(user_ref_point) <= 2
 
@@ -84,7 +87,7 @@ class sam3_model():
     @timer
     def __call__(self, image: np.array, **kwds) -> np.array:
         """
-        
+
             Make inference over a numpy image
 
         Args:
@@ -92,36 +95,31 @@ class sam3_model():
 
         Returns:
             np.array: image overlay with the inference result
-        """       
+        """
 
         if len(self.user_ref_point) == 2:
             image = draw_user_rectangle(image, self.overlay_config, self.user_ref_point)
 
-        
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         image = Image.fromarray(image)
 
-
         tokenizer_output = self.processor(
             images=image,
-            text=self.config["prompt"], 
+            text=self.config["prompt"],
             input_boxes=self.input_boxes,
             input_boxes_labels=self.input_boxes_labels,
-            return_tensors="pt"
+            return_tensors="pt",
         ).to(self.device)
-
 
         with torch.no_grad():
             outputs = self.model(**tokenizer_output)
-
 
         results = self.processor.post_process_instance_segmentation(
             outputs,
             threshold=self.config["score_thr"],
             mask_threshold=self.config["mask_threshold"],
-            target_sizes=tokenizer_output.get("original_sizes").tolist()
+            target_sizes=tokenizer_output.get("original_sizes").tolist(),
         )[0]
-
 
         output_image = overlay_masks(image, results["masks"])
 
@@ -132,11 +130,7 @@ class sam3_model():
 
 
 if __name__ == "__main__":
-    
     overlay_config = get_config("../config.json", "streaming_overlay")
     ml_model = sam3_model(config, overlay_config)
     ml_model.load()
     streaming_pipeline_OpenCV(config, ml_model)
-
-
-

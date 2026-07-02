@@ -1,10 +1,10 @@
-
 import cv2
 import utils.globals as globals
 
-def click_and_crop(event: int, x: int, y: int, flags: int, param) ->  None:
+
+def click_and_crop(event: int, x: int, y: int, flags: int, param) -> None:
     """
-    
+
         interruption handle of user interection with openCV window
 
     Args:
@@ -13,8 +13,8 @@ def click_and_crop(event: int, x: int, y: int, flags: int, param) ->  None:
         y (int): y position
         flags (int): unnused
         param (int): unnused
-    """    
-      
+    """
+
     if event == cv2.EVENT_LBUTTONDOWN:
         windowWidth = cv2.getWindowImageRect(globals.VISOR_NAME)[2]
         windowHeight = cv2.getWindowImageRect(globals.VISOR_NAME)[3]
