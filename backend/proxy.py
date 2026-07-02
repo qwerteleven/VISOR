@@ -19,13 +19,10 @@ root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__
 sys.path.append(root_folder)
 
 
-from utils.io import set_logger, load_config
+from utils.io import set_logger, load_config  # noqa: E402
 
 set_logger("../logs", os.path.basename(sys.argv[0]))
-
 config_cache = load_config("../config.json")
-
-
 app = FastAPI()
 
 

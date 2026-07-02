@@ -8,25 +8,25 @@ from typing import Dict, List, Tuple
 from PIL import Image
 import tensorrt as trt
 
-# loads all the plugins
-logger = trt.Logger(trt.Logger.WARNING)
-trt.init_libnvinfer_plugins(logger, "")
-
 from transformers import Sam3Processor
 from transformers.models.sam3.modeling_sam3 import Sam3ImageSegmentationOutput
-
 
 root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(root_folder)
 
-from utils.io import get_config, set_logger
+from utils.io import get_config, set_logger                           # noqa: E402
+import utils.cuda_handler as cuda_handler                             # noqa: E402
+from utils.image_processing import overlay_masks, draw_user_rectangle # noqa: E402
+from utils.wrappers import timer                                      # noqa: E402
+from utils.streaming import streaming_pipeline_OpenCV                 # noqa: E402
+
+
+# loads all the plugins
+logger = trt.Logger(trt.Logger.WARNING)
+trt.init_libnvinfer_plugins(logger, "")
+
 config = get_config("config.json", "demo_trt_webcam") 
 set_logger("../logs", os.path.basename(sys.argv[0]))
-
-import utils.cuda_handler as cuda_handler
-from utils.image_processing import overlay_masks, draw_user_rectangle
-from utils.wrappers import timer
-from utils.streaming import streaming_pipeline_OpenCV
 
 
 class sam3_model():

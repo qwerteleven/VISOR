@@ -5,19 +5,19 @@ import os
 import sys
 from typing import Dict, List, Tuple
 from PIL import Image
-
 from transformers import Sam3Processor, Sam3Model
 
 root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(root_folder)
 
-from utils.io import get_config, set_logger
+from utils.io import get_config, set_logger                           # noqa: E402
+from utils.image_processing import overlay_masks, draw_user_rectangle # noqa: E402
+from utils.wrappers import timer                                      # noqa: E402
+from utils.streaming import streaming_pipeline_OpenCV                 # noqa: E402
+
+
 config = get_config("config.json", "demo_pytorch_webcam") 
 set_logger("../logs", os.path.basename(sys.argv[0]))
-
-from utils.image_processing import overlay_masks, draw_user_rectangle
-from utils.wrappers import timer
-from utils.streaming import streaming_pipeline_OpenCV
 
 
 class sam3_model():
