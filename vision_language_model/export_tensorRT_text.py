@@ -62,18 +62,18 @@ except AttributeError:
 profile = builder.create_optimization_profile()
 
 for key, value in config["dynamic_shape"].items():
-    if (type(value["min"]) == 
-        type(value["opt"]) == 
-        type(value["max"]) == list):
+    if (type(value["min"]) is list and
+        type(value["opt"]) is list and
+        type(value["max"]) is list):
         profile.set_shape(
             key, 
             min = value["min"],
             opt = value["opt"],  
             max = value["max"]
         )
-    if (type(value["min"]) == 
-        type(value["opt"]) == 
-        type(value["max"]) == int):
+    if (type(value["min"]) is int and
+        type(value["opt"]) is int and
+        type(value["max"]) is int):
         profile.set_shape(
             key, 
             min = (value["min"], ),
