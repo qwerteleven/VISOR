@@ -78,7 +78,7 @@ def get_config(path: str, section: str) -> Dict:
         print(msg)
 
 
-    if not section in config:
+    if section not in config:
         msg = f"section config not exists: {path}"
         logging.error(msg)
         print(msg)
