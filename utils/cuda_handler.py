@@ -19,8 +19,6 @@ import argparse
 import os
 import ctypes
 from typing import Optional, List
-
-import ctypes
 import ml_dtypes
 import numpy as np
 import tensorrt as trt
