@@ -19,8 +19,8 @@ from fastapi.responses import StreamingResponse
 root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(root_folder)
 
-from demo_trt_webcam import sam3_model
-from utils.io import get_config, set_logger
+from demo_trt_webcam import sam3_model      # noqa: E402
+from utils.io import get_config, set_logger # noqa: E402
 
 set_logger("../logs", os.path.basename(sys.argv[0]))
 
@@ -136,7 +136,7 @@ def apply_overlay(frame: np.ndarray) -> bytes:
     output_image = ml_model(frame)
 
     img = Image.fromarray(cv2.cvtColor(output_image, cv2.COLOR_BGR2RGB))
-    draw = ImageDraw.Draw(img)
+    ImageDraw.Draw(img)
 
     buf = io.BytesIO()
 
@@ -224,7 +224,7 @@ async def overlay_ws(ws: WebSocket):
             await ws.send_text(json.dumps({"ok": True}))
 
     except WebSocketDisconnect:
-        msg = f"Web Socket Disconnect"
+        msg = "Web Socket Disconnect"
         logging.error(msg)
         print(msg)
     
