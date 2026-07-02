@@ -1,24 +1,26 @@
 
 import os
-os.environ['CUDA_MODULE_LOADING'] = 'LAZY'
 import tensorrt as trt
 import numpy as np
 import sys
 import logging
-
-root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.append(root_folder)
-
-from utils import func
-from utils import cuda_handler
-from utils.kv_cache_manager import KVCacheManager
 import ml_dtypes    
-from export_onnx_text import Gemma4_text_wrapper
 from transformers import AutoModelForCausalLM
 import torch
 
-from utils.io import get_config, set_logger
-from utils.trt_logger import trt_logger 
+os.environ['CUDA_MODULE_LOADING'] = 'LAZY'
+root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(root_folder)
+
+
+from utils import func                            # noqa: E402
+from utils import cuda_handler                    # noqa: E402
+from utils.kv_cache_manager import KVCacheManager # noqa: E402
+from export_onnx_text import Gemma4_text_wrapper  # noqa: E402
+from utils.io import get_config, set_logger       # noqa: E402
+from utils.trt_logger import trt_logger           # noqa: E402
+
+
 config = get_config("config.json", "export_text_tensorRT") 
 set_logger("../logs", os.path.basename(sys.argv[0]))
 
