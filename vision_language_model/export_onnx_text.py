@@ -29,7 +29,6 @@ read from `layer.self_attn.is_kv_shared_layer` per layer.
 """
 
 import torch
-import onnx
 import sys
 import os
 import logging
@@ -37,13 +36,13 @@ from transformers import AutoModelForCausalLM
 from transformers.cache_utils import StaticCache
 from typing import List, Tuple
 from torch.export import Dim
-import traceback
 
 root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(root_folder)
 
-from _layer_inspection import get_owning_layer_indices, get_layer_types
-from utils.io import get_config, set_logger, check_onnx
+from _layer_inspection import get_owning_layer_indices, get_layer_types # noqa: E402
+from utils.io import get_config, set_logger, check_onnx                 # noqa: E402
+
 config = get_config("config.json", "onnx_export_text") 
 set_logger("../logs", os.path.basename(sys.argv[0]))
 
