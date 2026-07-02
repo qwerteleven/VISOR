@@ -3,7 +3,6 @@ from transformers import AutoModelForCausalLM
 from transformers import AutoModelForMultimodalLM  
 from typing import List, Dict, Union
 import logging
-import os.path
 import onnx
 import numpy as np
 from collections import defaultdict
@@ -162,12 +161,12 @@ def _topo_sort(graph):
 
         if not progressed:
             raise RuntimeError(
-                f"stuck: {
+                f"""stuck: {
                     [
                     (n.name, [i for i in n.input if i not in available]) 
                     for n in still[:5]
                     ]
-                }"
+                }"""
             )
         
         remaining = still
