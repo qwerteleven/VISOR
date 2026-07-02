@@ -11,22 +11,21 @@ import traceback
 
 def load_config(path: str = "config.json") -> Dict:
     """
-    
+
         Load all the general config
 
     Returns:
         Dict: load config
-    """    
+    """
 
     if not os.path.isfile(path):
         msg = f"config file not exists: {path}"
         logging.error(msg)
         print(msg)
         raise Exception(msg)
-    
 
     with open(path, "r") as f:
-        try :
+        try:
             data = json.load(f)
         except json.JSONDecodeError as e:
             msg = f"invalid json format: {e}"
@@ -35,12 +34,11 @@ def load_config(path: str = "config.json") -> Dict:
             print(traceback.format_exc())
 
         return data
-    
 
-    
+
 def get_config(path: str, section: str) -> Dict:
     """
-    
+
         Get section of configuration in JSON format
 
     Args:
@@ -54,14 +52,14 @@ def get_config(path: str, section: str) -> Dict:
 
     Returns:
         Dict: return the section of configuration
-    """    
+    """
 
     if not os.path.isfile(path):
         msg = f"config file not exists: {path}"
         logging.error(msg)
         print(msg)
         raise Exception(msg)
-    
+
     try:
         with open(path) as f:
             try:
@@ -77,8 +75,7 @@ def get_config(path: str, section: str) -> Dict:
         logging.error(msg)
         print(msg)
 
-
-    if not section in config:
+    if section not in config:
         msg = f"section config not exists: {path}"
         logging.error(msg)
         print(msg)
@@ -89,9 +86,9 @@ def get_config(path: str, section: str) -> Dict:
     return config
 
 
-def oldest_file_in_tree(root_folder: str, extension: str=".log") -> str:
+def oldest_file_in_tree(root_folder: str, extension: str = ".log") -> str:
     """
-    
+
         find the oldest file in folder
 
     Args:
@@ -103,7 +100,7 @@ def oldest_file_in_tree(root_folder: str, extension: str=".log") -> str:
 
     Returns:
         str: oldest file in folder
-    """    
+    """
 
     if not os.path.isdir(root_folder):
         msg = f"folder not exists: {root_folder}"
@@ -112,15 +109,19 @@ def oldest_file_in_tree(root_folder: str, extension: str=".log") -> str:
         raise Exception(msg)
 
     return min(
-        (os.path.join(dirname, filename)
-        for dirname, dirnames, filenames in os.walk(root_folder)
-        for filename in filenames
-        if filename.endswith(extension)), key=lambda fn: os.stat(fn).st_mtime)
+        (
+            os.path.join(dirname, filename)
+            for dirname, dirnames, filenames in os.walk(root_folder)
+            for filename in filenames
+            if filename.endswith(extension)
+        ),
+        key=lambda fn: os.stat(fn).st_mtime,
+    )
 
 
 def set_logger(LOG_PATH: str, service_name: str) -> None:
     """
-    
+
         Iniciates a logger to code flux
 
     Args:
@@ -131,9 +132,9 @@ def set_logger(LOG_PATH: str, service_name: str) -> None:
         Exception: check if the folder exists
         Exception: check if the folder have more logs that MAX_LOGS
 
-    """    
+    """
 
-    config = get_config("../config.json", "logs") 
+    config = get_config("../config.json", "logs")
 
     timestamp = dt.datetime.fromtimestamp(time.time())
 
@@ -147,9 +148,10 @@ def set_logger(LOG_PATH: str, service_name: str) -> None:
         logging.error(msg)
         print(msg)
         raise Exception(msg)
-    
-    n_files_in_logs = len([name for name in os.listdir(LOG_PATH) if os.path.isfile(f"{LOG_PATH}/{name}")])
-    
+
+    n_files_in_logs = len(
+        [name for name in os.listdir(LOG_PATH) if os.path.isfile(f"{LOG_PATH}/{name}")]
+    )
 
     if n_files_in_logs > config["MAX_LOGS"]:
         oldest_log = oldest_file_in_tree(LOG_PATH)
@@ -160,7 +162,6 @@ def set_logger(LOG_PATH: str, service_name: str) -> None:
             logging.error(msg)
             print(msg)
             raise Exception(msg)
-
 
     LOG_FILE = f"{LOG_PATH}/{service_name}_{date}.log"
     logFormatter = logging.Formatter(config["log_format"])
@@ -173,14 +174,13 @@ def set_logger(LOG_PATH: str, service_name: str) -> None:
 
 def save_onnx(output_file: str, m):
     """
-    
+
         save ONNX model, if exist is overwritte
 
     Args:
         output_file (str): path to save
         m (ONNX): model to save
-    """    
-
+    """
 
     if os.path.isfile(output_file):
         os.remove(output_file)
@@ -193,10 +193,10 @@ def save_onnx(output_file: str, m):
     onnx.save(
         m,
         output_file,
-        save_as_external_data = True,
-        all_tensors_to_one_file = True,
-        location = output_data.split("/")[-1],
-        size_threshold = 1024,
+        save_as_external_data=True,
+        all_tensors_to_one_file=True,
+        location=output_data.split("/")[-1],
+        size_threshold=1024,
     )
 
     print(f"saved {output_file}")
@@ -204,12 +204,12 @@ def save_onnx(output_file: str, m):
 
 def check_onnx(path: str):
     """
-    
+
         check if a save graph have a coherent structure
 
     Args:
         path (str): file to examinate
-    """    
+    """
 
     try:
         print("ONNX CHECK")
@@ -218,6 +218,3 @@ def check_onnx(path: str):
     except Exception as e:
         print("ONNX CHECK FAILED:", type(e), e)
         raise
-
-
-

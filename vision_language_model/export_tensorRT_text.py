@@ -1,31 +1,34 @@
-
 import os
-os.environ['CUDA_MODULE_LOADING'] = 'LAZY'
 import tensorrt as trt
 import numpy as np
 import sys
 import logging
-
-root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.append(root_folder)
-
-from utils import func
-from utils import cuda_handler
-from utils.kv_cache_manager import KVCacheManager
-import ml_dtypes    
-from export_onnx_text import Gemma4_text_wrapper
+import ml_dtypes
 from transformers import AutoModelForCausalLM
 import torch
 
-from utils.io import get_config, set_logger
-from utils.trt_logger import trt_logger 
-config = get_config("config.json", "export_text_tensorRT") 
+os.environ["CUDA_MODULE_LOADING"] = "LAZY"
+root_folder = os.path.abspath(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
+sys.path.append(root_folder)
+
+
+from utils import func  # noqa: E402
+from utils import cuda_handler  # noqa: E402
+from utils.kv_cache_manager import KVCacheManager  # noqa: E402
+from export_onnx_text import Gemma4_text_wrapper  # noqa: E402
+from utils.io import get_config, set_logger  # noqa: E402
+from utils.trt_logger import trt_logger  # noqa: E402
+
+
+config = get_config("config.json", "export_text_tensorRT")
 set_logger("../logs", os.path.basename(sys.argv[0]))
 
 
 logger = trt_logger()
 trt.init_libnvinfer_plugins(logger, "")
-model_path = config["model_path"] 
+model_path = config["model_path"]
 
 
 builder = trt.Builder(logger)
@@ -44,14 +47,18 @@ if not success:
 
 
 config_build = builder.create_builder_config()
-config_build.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, config["memory_size_gb"] << 30)
+config_build.set_memory_pool_limit(
+    trt.MemoryPoolType.WORKSPACE, config["memory_size_gb"] << 30
+)
 
 if builder.platform_has_fast_fp16:
     config_build.set_flag(trt.BuilderFlag.FP16)
 
 
 try:
-    config_build.builder_optimization_level = 5      # 0–5; 5 = longest build, fastest engine
+    config_build.builder_optimization_level = (
+        5  # 0–5; 5 = longest build, fastest engine
+    )
 except AttributeError:
     msg = "older TRT version"
     logging.error(msg)
@@ -60,27 +67,23 @@ except AttributeError:
 profile = builder.create_optimization_profile()
 
 for key, value in config["dynamic_shape"].items():
-    if (type(value["min"]) == 
-        type(value["opt"]) == 
-        type(value["max"]) == list):
+    if (
+        type(value["min"]) is list
+        and type(value["opt"]) is list
+        and type(value["max"]) is list
+    ):
+        profile.set_shape(key, min=value["min"], opt=value["opt"], max=value["max"])
+    if (
+        type(value["min"]) is int
+        and type(value["opt"]) is int
+        and type(value["max"]) is int
+    ):
         profile.set_shape(
-            key, 
-            min = value["min"],
-            opt = value["opt"],  
-            max = value["max"]
-        )
-    if (type(value["min"]) == 
-        type(value["opt"]) == 
-        type(value["max"]) == int):
-        profile.set_shape(
-            key, 
-            min = (value["min"], ),
-            opt = (value["opt"], ),  
-            max = (value["max"], )
+            key, min=(value["min"],), opt=(value["opt"],), max=(value["max"],)
         )
 
 
-config_kv_cache = get_config("config.json", "kv_cache") 
+config_kv_cache = get_config("config.json", "kv_cache")
 
 cache = KVCacheManager(
     owning_indices=config_kv_cache["owning_indices"],
@@ -95,16 +98,16 @@ cache = KVCacheManager(
 
 for layer_idx, spec in cache.specs.items():
     shape = (cache.batch_size, spec.num_kv_heads, spec.seq_dim, spec.head_dim)
-    key_name   = f"past_key_values.{layer_idx}.key" 
+    key_name = f"past_key_values.{layer_idx}.key"
     value_name = f"past_key_values.{layer_idx}.value"
-    profile.set_shape(key_name,   min=shape, opt=shape, max=shape)
+    profile.set_shape(key_name, min=shape, opt=shape, max=shape)
     profile.set_shape(value_name, min=shape, opt=shape, max=shape)
 
 config_build.add_optimization_profile(profile)
 serialized_engine = builder.build_serialized_network(network, config_build)
 
 
-try: 
+try:
     with open(config["output_name"], "wb") as f:
         f.write(serialized_engine)
 except FileNotFoundError:
@@ -117,18 +120,19 @@ except Exception as e:
     print(msg)
 
 
-
-
-
 print("CHECK NUMERICAL DIFFERENCE")
-cache.reset() 
+cache.reset()
 
 
-model = AutoModelForCausalLM.from_pretrained(config["model_label"], dtype=torch.bfloat16).eval()
+model = AutoModelForCausalLM.from_pretrained(
+    config["model_label"], dtype=torch.bfloat16
+).eval()
 wrapper_decode = Gemma4_text_wrapper(model, 1, config["MAX_CACHE_LEN"])
 
 
-input_ids_dec = torch.randint(0, config["vocab_size"], (1, config["MAX_CACHE_LEN"]), dtype=torch.int64)
+input_ids_dec = torch.randint(
+    0, config["vocab_size"], (1, config["MAX_CACHE_LEN"]), dtype=torch.int64
+)
 attention_mask_dec = torch.ones((1, config["MAX_CACHE_LEN"]), dtype=torch.int64)
 cache_position_dec = torch.arange(config["MAX_CACHE_LEN"], dtype=torch.int64)
 
@@ -150,7 +154,7 @@ with open(config["output_name"], "rb") as f, trt.Runtime(logger) as runtime:
 context = engine.create_execution_context()
 
 
-context.set_input_shape("input_ids",      (1, config["MAX_CACHE_LEN"]))
+context.set_input_shape("input_ids", (1, config["MAX_CACHE_LEN"]))
 context.set_input_shape("attention_mask", (1, config["MAX_CACHE_LEN"]))
 context.set_input_shape("cache_position", (config["MAX_CACHE_LEN"],))
 
@@ -164,7 +168,7 @@ input_name_to_idx, output_name_to_idx = cuda_handler.get_input_output(engine)
 
 
 for name, tensor in [
-    ("input_ids",      input_ids_dec),
+    ("input_ids", input_ids_dec),
     ("attention_mask", attention_mask_dec),
     ("cache_position", cache_position_dec),
 ]:
@@ -179,15 +183,21 @@ for pos, cache_tensor in enumerate(flat_np):
 
 
 engine_out = cuda_handler.do_inference(
-    context, engine=engine, bindings=bindings,
-    inputs=inputs_trt, outputs=outputs_trt, stream=stream
+    context,
+    engine=engine,
+    bindings=bindings,
+    inputs=inputs_trt,
+    outputs=outputs_trt,
+    stream=stream,
 )
 
 
 logits_idx = output_name_to_idx["mul_13306"]
-trt_logits = engine_out[logits_idx][:config["MAX_CACHE_LEN"] * config["vocab_size"]].reshape(
-    1, config["MAX_CACHE_LEN"], config["vocab_size"]
-).astype(np.float32)
+trt_logits = (
+    engine_out[logits_idx][: config["MAX_CACHE_LEN"] * config["vocab_size"]]
+    .reshape(1, config["MAX_CACHE_LEN"], config["vocab_size"])
+    .astype(np.float32)
+)
 
 
 diff = np.abs(trt_logits - eager_logits).max()
@@ -199,5 +209,6 @@ print(f"max logits diff, after sigmoid (TRT decode engine vs eager): {diff:.6f}"
 trt_argmax = trt_logits[0, -1, :].argmax()
 eager_argmax = eager_logits[0, -1, :].argmax()
 
-print(f"last-position argmax — TRT: {trt_argmax}, eager: {eager_argmax}, match: {trt_argmax == eager_argmax}")
-
+print(
+    f"last-position argmax — TRT: {trt_argmax}, eager: {eager_argmax}, match: {trt_argmax == eager_argmax}"
+)

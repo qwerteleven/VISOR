@@ -2,14 +2,16 @@ import time
 import sys
 import logging
 
+
 def timer(func):
     """
-    
+
         show the time mean over 100 iteration
 
     Args:
         func (function): decorator over function
-    """    
+    """
+
     def wrapper(*args, **kwargs):
         nonlocal total
         nonlocal n_iteration
@@ -30,14 +32,14 @@ def timer(func):
         assert total < sys.float_info.max - 1
 
         if n_iteration % 100 == 0:
-            msg = f"Mean process time: {total /  100}, by 100 iterations"
+            msg = f"Mean process time: {total / 100}, by 100 iterations"
             print(msg)
             logging.info(msg)
-            n_iteration = 0 
+            n_iteration = 0
             total = 0
 
         return result
-    
+
     n_iteration = 0
     total = 0
     return wrapper

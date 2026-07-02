@@ -18,22 +18,30 @@ Usage:
     cache.update_from_flat_outputs(flat_outputs)  # after each inference call
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import numpy as np
 
 
 @dataclass
 class LayerCacheSpec:
     layer_idx: int
-    layer_type: str            # "sliding_attention" | "full_attention"
-    seq_dim: int               # 512 (sliding_window) or max_cache_len (full)
-    head_dim: int              # 256 (sliding) or global_head_dim (full)
+    layer_type: str  # "sliding_attention" | "full_attention"
+    seq_dim: int  # 512 (sliding_window) or max_cache_len (full)
+    head_dim: int  # 256 (sliding) or global_head_dim (full)
     num_kv_heads: int
 
 
 class KVCacheManager:
-    def __init__(self, owning_indices, layer_types, config, max_cache_len,
-                 batch_size, dtype, np_dtype=None):
+    def __init__(
+        self,
+        owning_indices,
+        layer_types,
+        config,
+        max_cache_len,
+        batch_size,
+        dtype,
+        np_dtype=None,
+    ):
         """
         owning_indices: list[int]  -- the 24 real layer indices, in wrapper order
         layer_types:    list[str] -- matching layer_type per owning_indices entry
@@ -63,7 +71,6 @@ class KVCacheManager:
                 head_dim=head_dim,
                 num_kv_heads=config["num_key_value_heads"],
             )
-
 
         self.tensors: dict[int, dict[str, np.ndarray]] = {}
         self.reset()
@@ -103,7 +110,7 @@ class KVCacheManager:
         return self.tensors[layer_idx][kind]
 
     # --- name mapping for TensorRT binding ---
-    def flat_input_names(self, name_template = "flat_cache_in_{idx}"):
+    def flat_input_names(self, name_template="flat_cache_in_{idx}"):
         """Names matching what the ONNX export should produce for cache inputs,
         in flat order. Adjust name_template if your actual export uses a
         different naming convention -- check with `engine.get_tensor_name(i)`

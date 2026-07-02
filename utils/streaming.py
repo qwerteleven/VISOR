@@ -12,9 +12,12 @@ from utils.io import get_config
 from utils.user_event import click_and_crop
 import utils.globals as globals
 
-def streaming_pipeline_OpenCV(config: Dict, ml_model: object, cam: object = None) -> None:
+
+def streaming_pipeline_OpenCV(
+    config: Dict, ml_model: object, cam: object = None
+) -> None:
     """
-    
+
         Create a streaming processing with OpenCV cam handles
 
     Args:
@@ -27,7 +30,7 @@ def streaming_pipeline_OpenCV(config: Dict, ml_model: object, cam: object = None
         Exception: check if can take a frame from device
         Exception: check if can make inference on model
 
-    """    
+    """
 
     globals.init()
     globals.VISOR_NAME = config["VISOR_NAME"]
@@ -41,7 +44,6 @@ def streaming_pipeline_OpenCV(config: Dict, ml_model: object, cam: object = None
             print(msg)
             raise Exception(msg)
 
-    
     cv2.namedWindow(config["VISOR_NAME"])
     cv2.setMouseCallback(config["VISOR_NAME"], click_and_crop)
 
@@ -56,7 +58,7 @@ def streaming_pipeline_OpenCV(config: Dict, ml_model: object, cam: object = None
             logging.error(msg)
             print(msg)
             raise Exception(msg)
-        
+
         try:
             ml_model.update_attention_region(globals.user_ref_point, image.shape)
             output_image = ml_model(image)
@@ -74,10 +76,16 @@ def streaming_pipeline_OpenCV(config: Dict, ml_model: object, cam: object = None
     cam.release()
 
 
-
-def streaming_pipeline_vidgear(config: Dict, ml_model: object, input_source: str, input_config: Dict, output_source: str, output_config: Dict) -> None:
+def streaming_pipeline_vidgear(
+    config: Dict,
+    ml_model: object,
+    input_source: str,
+    input_config: Dict,
+    output_source: str,
+    output_config: Dict,
+) -> None:
     """
-    
+
         Takes a input of streaming, executes the ml model over the frames and stremaing the result to rtsp-server
 
     Args:
@@ -91,22 +99,17 @@ def streaming_pipeline_vidgear(config: Dict, ml_model: object, input_source: str
     Raises:
         Exception: check if can read frames from input source
         Exception: check if can do the inference over the frame
-    """    
-    
-    custom_ffmpeg = get_config("config.json", "custom_ffmpeg") 
+    """
+
+    custom_ffmpeg = get_config("config.json", "custom_ffmpeg")
 
     stream = CamGear(
-        source = input_source, 
-        **input_config, 
-        custom_ffmpeg = custom_ffmpeg
-    ).start() 
+        source=input_source, **input_config, custom_ffmpeg=custom_ffmpeg
+    ).start()
 
     streamer = WriteGear(
-        output = output_source, 
-        **output_config, 
-        custom_ffmpeg = custom_ffmpeg
-    )  
-
+        output=output_source, **output_config, custom_ffmpeg=custom_ffmpeg
+    )
 
     assert config["max_iteration"] > 0
     assert config["max_iteration"] < sys.maxsize - 1
@@ -131,7 +134,7 @@ def streaming_pipeline_vidgear(config: Dict, ml_model: object, input_source: str
             print(msg)
             print(traceback.format_exc())
             raise Exception(msg)
-        
+
         try:
             streamer.write(output_image)
         except Exception as e:
@@ -141,7 +144,5 @@ def streaming_pipeline_vidgear(config: Dict, ml_model: object, input_source: str
             print(traceback.format_exc())
             raise Exception(msg)
 
-
     stream.stop()
     streamer.close()
-
