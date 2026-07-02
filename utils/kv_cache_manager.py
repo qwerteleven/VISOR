@@ -18,7 +18,7 @@ Usage:
     cache.update_from_flat_outputs(flat_outputs)  # after each inference call
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import numpy as np
 
 
