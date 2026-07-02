@@ -41,6 +41,7 @@ ml_model.load()
 last_frame_time = 0  
 latest_frame: np.ndarray | None = None
 frame_lock = threading.Lock()
+global ref_points
 ref_points: List = []
 skip_next_touch_end: bool = False
 
