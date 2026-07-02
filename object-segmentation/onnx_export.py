@@ -13,10 +13,10 @@ import traceback
 root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(root_folder)
 
-from utils.io import get_config, set_logger
+from utils.io import get_config, set_logger # noqa: E402
+
 config = get_config("config.json", "onnx_export") 
 set_logger("../logs", os.path.basename(sys.argv[0]))
-
 
 device = config["device"]
 
@@ -78,7 +78,7 @@ class Sam3ONNXWrapper(torch.nn.Module):
 wrapper = Sam3ONNXWrapper(model).to(device).eval()
 
 # 5. Export to ONNX
-output_dir = Path(f"onnx_weights")
+output_dir = Path("onnx_weights")
 output_dir.mkdir(exist_ok=True)
 onnx_path = str(output_dir /  config["onnx_path"])
 
