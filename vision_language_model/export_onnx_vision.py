@@ -28,13 +28,13 @@ root_folder = os.path.abspath(
 )
 sys.path.append(root_folder)
 
-from _layer_inspection import (
+from _layer_inspection import (  # noqa: E402
     get_owning_layer_indices,
     get_layer_types,
     patch_clamp_limit,
     patch_reduce,
     patch_split_sequence,
-)  # noqa: E402
+)
 from utils.io import get_config, set_logger, save_onnx, check_onnx  # noqa: E402
 
 
