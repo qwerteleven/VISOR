@@ -105,15 +105,15 @@ class Gemma4_vision_wrapper(torch.nn.Module):
             Tuple[torch.Tensor, List]: logits, cache tensors
         """        
         
-
+        """
         past_key_values = StaticCache(
-            config=self.model.config.text_config if hasattr(self.model.config, "text_config") else self.model.config,
+            config=self.model.config.text_config,
             max_batch_size=self.max_batch_size,
             max_cache_len=self.max_cache_len,
             device=input_ids.device,
             dtype=self.model.dtype,
         )
-
+        """
         outputs = self.model(
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -121,26 +121,29 @@ class Gemma4_vision_wrapper(torch.nn.Module):
             pixel_values=pixel_values,
             image_position_ids=image_position_ids,
             position_ids=position_ids,
-            past_key_values=past_key_values,
-            use_cache=True,
+            #past_key_values=past_key_values,
+            use_cache=False # use_cache=True,
         )
 
         logits = outputs.logits
+
+        """
         softcap = self.model.config.text_config.final_logit_softcapping
 
         if softcap is not None:
             logits = logits / softcap
             logits = torch.tanh(logits)
             logits = logits * softcap
-
+        """
+        """
         flat_cache_out = []
 
         for layer_idx in self.owning_indices:
             layer = past_key_values.layers[layer_idx]
             flat_cache_out.append(layer.keys)
             flat_cache_out.append(layer.values)
-
-        return (logits, *flat_cache_out)
+        """
+        return (logits, 1) # *flat_cache_out)
     
 
 def build_dummy_inputs(
@@ -253,15 +256,16 @@ if __name__ == "__main__":
 
     logits_diff = (eager_out[0].float() - exported_out[0].float()).abs().max()
     print("max logits diff:", logits_diff.item())
-
+    
+    """
     for i in [0, 1, 46, 47]:
         diff = (eager_out[1+i].float() - exported_out[1+i].float()).abs().max()
         print(f"cache tensor {i} max diff:", diff.item())
 
-
+    """
     print("Try complete export")
 
-    seq_len_dim = Dim("seq_len", min=1, max=config["PREFILL_LEN"])
+    seq_len_dim = Dim("seq_len", min=37, max=config["PREFILL_LEN"])
 
     dynamic_shapes = {
         "input_ids":          {1: seq_len_dim},
@@ -271,7 +275,7 @@ if __name__ == "__main__":
         "image_position_ids": {},
         "position_ids":       {1: seq_len_dim},
     }
-
+    print("input_ids", input_ids.shape)
 
     try:
         exported = torch.onnx.export(
@@ -281,7 +285,7 @@ if __name__ == "__main__":
             dynamic_shapes=dynamic_shapes,
             dynamo=True,
             external_data=True,
-            optimize=False
+            optimize=True
         )
         print("EXPORT SUCCEEDED")
     except Exception as e:
