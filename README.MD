@@ -1,3 +1,5 @@
+computer-vision, edge-ai, real-time-video, tensorrt, sam, vision-language-model, webrtc, jetson, gpu-inference, image-segmentation, multimodal, fastapi
+
 # VISOR
 
 Real-time object segmentation and natural language description system. A user points their phone camera at an object, draws a bounding box, and receives a live AI-generated segmentation mask with a text description — all in a mobile browser, with no app installation required.
