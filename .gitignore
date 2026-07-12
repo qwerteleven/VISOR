@@ -15,4 +15,4 @@ config.json
 *.onnx_data
 *.onnx
 *.data
-.coverage/
+.coverage
