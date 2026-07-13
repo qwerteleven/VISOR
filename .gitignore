@@ -2,7 +2,7 @@ __pycache__
 triton/
 llvm-project/
 *.engine
-object-segmentation/onnx_weights/*
+object_segmentation/onnx_weights/*
 logs/*
 onnx__MatMul*
 *.txt
