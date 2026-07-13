@@ -1,6 +1,6 @@
 def init():
     """
-    Globals variables across the aplication
+    Globals variables across the application
     """
 
     global user_ref_point

@@ -199,7 +199,7 @@ async def overlay_ws(ws: WebSocket):
         Manage the comunication between user and ML model
 
     Args:
-        ws (WebSocket): conection between user - API
+        ws (WebSocket): connection between user - API
     """
     await ws.accept()
 
