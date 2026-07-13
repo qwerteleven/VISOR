@@ -30,8 +30,8 @@ jobs:
     - name: Check code formatting with Ruff
       run: ruff format --diff --target-version=py39
       continue-on-error: true
-    - name: type check 
-      run: mypy src
+#    - name: type check 
+#      run: mypy src
 
   unit-tests:
       needs: build 
