@@ -64,7 +64,9 @@ def rtsp_reader(rtsp_url: str) -> None:
             cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
             if not cap.isOpened():
-                print("RTSP not available, retrying in 5s...")
+                print(
+                    f"RTSP not available, retrying in {sam_timeout['connect_rtsp']}s..."
+                )
                 time.sleep(sam_timeout["connect_rtsp"])
                 continue
 
@@ -152,6 +154,8 @@ def apply_overlay(frame: np.ndarray) -> bytes:
         logging.error(msg)
         print(msg)
         print(traceback.format_exc())
+        placeholder = Image.new("RGB", (512, 512), "#f00")
+        placeholder.save(buf, format="JPEG")
 
     return buf.getvalue()
 
@@ -217,10 +221,10 @@ async def overlay_ws(ws: WebSocket):
                     ref_points = [(msg["x"], msg["y"])]
 
                 if msg["type"] == "touch_end":
-                    if skip_next_touch_end:
+                    if not skip_next_touch_end:
+                        ref_points += [(msg["x"], msg["y"])]
+                    else:
                         skip_next_touch_end = False
-                        continue
-                    ref_points += [(msg["x"], msg["y"])]
 
             await ws.send_text(json.dumps({"ok": True}))
 
