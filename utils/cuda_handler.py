@@ -44,11 +44,14 @@ def check_cuda_err(err):
     if isinstance(err, cuda.CUresult):
         if err != cuda.CUresult.CUDA_SUCCESS:
             raise RuntimeError(f"Cuda Error: {err}")
+        return
+
     if isinstance(err, cudart.cudaError_t):
         if err != cudart.cudaError_t.cudaSuccess:
             raise RuntimeError(f"Cuda Runtime Error: {err}")
-    else:
-        raise RuntimeError(f"Unknown error type: {err}")
+        return
+
+    raise RuntimeError(f"Unknown error type: {err}")
 
 
 def cuda_call(call):

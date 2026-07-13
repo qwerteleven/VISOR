@@ -88,7 +88,7 @@ http://<host>:8889/movil_camera/
 
 ### Config changes
 
-For enable the UPD direct connection with the web, you must provide a form to return the conection
+For enable the UPD direct connection with the web, you must provide a form to return the connection
 
 ```
 webrtcAdditionalHosts: [public IP]

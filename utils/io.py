@@ -32,6 +32,12 @@ def load_config(path: str = "config.json") -> Dict:
             logging.error(msg)
             print(msg)
             print(traceback.format_exc())
+        except Exception as e:
+            msg = f"Can not load json: {e}"
+            logging.error(msg)
+            print(msg)
+            print(traceback.format_exc())
+            raise Exception(msg)
 
         return data
 
@@ -74,6 +80,12 @@ def get_config(path: str, section: str) -> Dict:
         msg = f"Can not load config json: {path}"
         logging.error(msg)
         print(msg)
+    except Exception as e:
+        msg = f"Can not load json: {e}"
+        logging.error(msg)
+        print(msg)
+        print(traceback.format_exc())
+        raise Exception(msg)
 
     if section not in config:
         msg = f"section config not exists: {path}"
@@ -108,15 +120,33 @@ def oldest_file_in_tree(root_folder: str, extension: str = ".log") -> str:
         print(msg)
         raise Exception(msg)
 
-    return min(
-        (
-            os.path.join(dirname, filename)
-            for dirname, dirnames, filenames in os.walk(root_folder)
-            for filename in filenames
-            if filename.endswith(extension)
-        ),
-        key=lambda fn: os.stat(fn).st_mtime,
+    file_list = (
+        os.path.join(dirname, filename)
+        for dirname, dirnames, filenames in os.walk(root_folder)
+        for filename in filenames
+        if filename.endswith(extension)
     )
+
+    if not file_list:
+        msg = f"list oldests files that match with: {extension}"
+        logging.error(msg)
+        print(msg)
+        print(traceback.format_exc())
+        raise Exception(msg)
+
+    try:
+        oldest_file = min(
+            file_list,
+            key=lambda fn: os.stat(fn).st_mtime,
+        )
+    except Exception as e:
+        msg = f"Can not get oldest file error: {e}"
+        logging.error(msg)
+        print(msg)
+        print(traceback.format_exc())
+        raise Exception(msg)
+
+    return oldest_file
 
 
 def set_logger(LOG_PATH: str, service_name: str) -> None:

@@ -215,7 +215,7 @@ def build_dummy_inputs(
         model (AutoModelForCausalLM): target model
         wrapper (Gemma4_text_wrapper): wrapper to make traceable computation flow
         batch_size (int): number of inputs, normally 1, text generation
-        prefill_len (int): promt text lenght
+        prefill_len (int): prompt text lenght
         device (torch.dtype): computation device target
 
     Returns:
