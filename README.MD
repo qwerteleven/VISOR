@@ -79,7 +79,7 @@ print(torch.cuda.get_device_name(0))
 Browsers require HTTPS to access the device camera. Generate a self-signed certificate for development:
 
 ```bash
-openssl x509 -in cert.csr -out cert.pem -req -signkey key.pem -days 1001
+openssl x509 -in cert.csr -out cert.pem -req -signkey key.pem -days 11
 ```
 
 > **Note:** Self-signed certificates are for development only. Use a CA-issued certificate in production.
@@ -236,45 +236,6 @@ All coordinates are normalized floats in `[0.0, 1.0]` relative to the frame dime
 | `overlay_stream` | Processed video stream |
 | `tracking_update` | `{ mask_bbox: { x1, y1, x2, y2 } }` |
 | `description_ready` | `{ text: string, segment_image_url: string }` |
-
----
-
-## Project Structure
-
-```
-VISOR/
-├── backend/
-│   └── proxy.py                  # FastAPI reverse proxy — WebSocket + HTTP routing
-├── frontend/
-│   └── index.html                # Mobile web client (WebRTC, touch events, stream display)
-├── object-segmentation/
-│   ├── onnx_export.py            # Export SAM-3 from PyTorch to ONNX
-│   ├── export_tensorRT.py        # Compile ONNX model to TensorRT engine
-│   ├── demo_pytorch_webcam.py    # PyTorch inference (development/validation)
-│   ├── demo_trt_webcam.py        # TensorRT inference (production)
-│   ├── sam_api.py                # FastAPI service — segmentation + streaming
-│   └── tensorRT_weights/         # Compiled TensorRT engine (populated after export)
-├── vision_language_model/
-│   └── test.py                   # Gemma-4 inference test
-├── utils/
-│   ├── cuda_handler.py           # TensorRT buffer allocation and inference helpers
-│   ├── image_processing.py       # Mask overlay and bounding box drawing
-│   ├── streaming.py              # OpenCV and VidGear streaming pipelines
-│   ├── user_event.py             # Mouse/touch event handlers
-│   ├── io.py                     # Config loading and logging setup
-│   ├── wrappers.py               # Timing decorator
-│   └── globals.py                # Shared application state
-├── config.json.default           # Configuration template
-├── DESIGN.MD                     # Architecture and design decisions
-├── INSTALL.MD                    # Detailed setup guide
-├── SCALABILITY.MD                # Concurrency, VRAM budgets, and horizontal scaling
-├── SECURITY.MD                   # Security policy
-├── OBSERVABILITY.MD              # Metrics, tracing, and alerting strategy
-├── EFFICIENCY.MD                 # Performance optimization notes
-├── BUSINESS_LINES.MD             # Target verticals and business model
-├── RESEARCH_LINES.MD             # Research directions
-└── LEGAL_RECOMMENDATION.MD       # Data protection and compliance framework
-```
 
 ---
 
